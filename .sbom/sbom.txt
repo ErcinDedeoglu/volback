@@ -7,7 +7,6 @@ busybox                                                        1.36.1-r19       
 busybox-binsh                                                  1.36.1-r19            apk          
 ca-certificates                                                20241121-r1           apk          
 ca-certificates-bundle                                         20241121-r1           apk          
-dcron                                                          4.5-r9                apk          
 docker-cli                                                     25.0.5-r1             apk          
 github.com/distribution/reference                              v0.6.0                go-module    
 github.com/docker/cli/cmd/docker                               v25.0.5               go-module    
@@ -36,6 +35,5 @@ scanelf                                                        1.3.7-r2         
 ssl_client                                                     1.36.1-r19            apk          
 stdlib                                                         go1.21.10             go-module    
 stdlib                                                         go1.23.6              go-module    
-tzdata                                                         2025a-r0              apk          
 volback                                                        (devel)               go-module    
 zlib                                                           1.3.1-r0              apk
