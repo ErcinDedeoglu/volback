@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/base64"
+	"fmt"
 	"os"
 	"path/filepath"
 )
@@ -47,10 +48,11 @@ func backupVolume(volume Volume, tempDir string) error {
 }
 
 func createFinalArchive(container, tempDir, outputDir string) error {
+	finalArchivePath := filepath.Join(outputDir, container+".7z")
 	args := []string{
 		"run", "--rm",
 		"-v", tempDir + ":/source:ro",
-		"-v", outputDir + ":/output",
+		"-v", filepath.Dir(finalArchivePath) + ":/output",
 		"dublok/packmate:latest",
 		"--name", container,
 		"--compression=0",
@@ -58,7 +60,15 @@ func createFinalArchive(container, tempDir, outputDir string) error {
 		"--multithreading=true",
 		"--extra=-ms=off",
 	}
-
 	_, err := executeCommand("docker", args...)
-	return err
+	if err != nil {
+		return err
+	}
+
+	// Verify the file exists
+	if _, err := os.Stat(finalArchivePath); os.IsNotExist(err) {
+		return fmt.Errorf("final archive was not created at %s", finalArchivePath)
+	}
+
+	return nil
 }

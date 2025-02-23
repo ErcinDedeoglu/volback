@@ -4,7 +4,7 @@ repomix --no-file-summary --no-security-check \
 
 go mod tidy
 
-docker build -t dublok/volback:latest -f src/Dockerfile .
+docker build -t dublok/volback:latest -f src/Dockerfile ./src
 
 go run ./*.go --container test1 \
     --id a-unique-name-to-identify-backup \
@@ -26,4 +26,5 @@ docker run -d \
     -e DROPBOX_CLIENT_SECRET=secret \
     -e DROPBOX_PATH=/backups/docker \
     -v /var/run/docker.sock:/var/run/docker.sock \
+    -v /tmp:/tmp \
     dublok/volback:latest

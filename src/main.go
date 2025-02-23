@@ -43,8 +43,8 @@ func main() {
 	}
 
 	// Create temporary working directory
-	tempDir, err := os.MkdirTemp("", "docker-backup-*")
-	if err != nil {
+	tempDir := filepath.Join("/tmp", "volback-"+time.Now().Format("20060102150405"))
+	if err := os.MkdirAll(tempDir, 0755); err != nil {
 		logStep("❌ Failed to create temporary directory: %v", err)
 		os.Exit(1)
 	}
@@ -119,10 +119,22 @@ func main() {
 				KeepYearly:  *keepYearly,
 			}
 
+			logHeader("🧹 Starting retention management...")
+			logStep("📊 Retention Policy:")
+			logSubStep("Daily backups to keep: %d", policy.KeepDaily)
+			logSubStep("Weekly backups to keep: %d", policy.KeepWeekly)
+			logSubStep("Monthly backups to keep: %d", policy.KeepMonthly)
+			logSubStep("Yearly backups to keep: %d", policy.KeepYearly)
+
 			retentionPath := filepath.Join(*dropboxPath, backupID)
+			logStep("📁 Processing retention for path: %s", retentionPath)
+
 			if err := manageRetention(uploader, retentionPath, policy); err != nil {
-				logStep("❌ Failed to manage retention: %v", err)
-				os.Exit(1)
+				logStep("❌ Retention management failed: %v", err)
+				// Decide if you want to exit here or continue
+				// os.Exit(1) // Uncomment if you want to exit on retention failure
+			} else {
+				logStep("✅ Retention management completed successfully")
 			}
 		}
 	} else {

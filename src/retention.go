@@ -24,24 +24,25 @@ func parseBackupDateTime(filename string) (time.Time, error) {
 func manageRetention(uploader *DropboxUploader, backupPath string, policy RetentionPolicy) error {
 	logHeader("🧹 Managing backup retention...")
 
-	// List all backups in the directory
 	files, err := uploader.ListFiles(backupPath)
 	if err != nil {
 		return err
 	}
 
-	// Parse files into backup objects
 	var backups []Backup
 	for _, file := range files {
-		// Get just the filename from the full path
 		filename := filepath.Base(file)
-
-		// Parse timestamp from filename
-		t, err := parseBackupDateTime(filename)
-		if err != nil {
-			logSubStep("⚠️  Skipping file with invalid format: %s", filename)
+		if !strings.HasPrefix(filename, "202") {
+			logSubStep("⚠️  Skipping invalid filename: %s", filename)
 			continue
 		}
+
+		t, err := parseBackupDateTime(filename)
+		if err != nil {
+			logSubStep("⚠️  Skipping unparseable file: %s (%v)", filename, err)
+			continue
+		}
+
 		backups = append(backups, Backup{Path: file, DateTime: t})
 	}
 
@@ -55,66 +56,69 @@ func manageRetention(uploader *DropboxUploader, backupPath string, policy Retent
 		return backups[i].DateTime.After(backups[j].DateTime)
 	})
 
-	// Determine which backups to keep
 	toKeep := make(map[string]bool)
+	backupCategories := make(map[string]string) // Track which category each backup belongs to
 
-	// Keep daily backups
-	dailyMap := make(map[string]bool)
-	dailyCount := 0
-	for _, b := range backups {
-		dateKey := b.DateTime.Format("2006-01-02")
-		if !dailyMap[dateKey] && dailyCount < policy.KeepDaily {
-			dailyMap[dateKey] = true
+	// Always keep most recent backup
+	mostRecent := backups[0]
+	toKeep[mostRecent.Path] = true
+	backupCategories[mostRecent.Path] = "most_recent"
+	logSubStep("📌 Keeping most recent backup: %s", filepath.Base(mostRecent.Path))
+
+	// Helper function to check if backup belongs to a different period
+	isDifferentPeriod := func(t1, t2 time.Time, format string) bool {
+		return t1.Format(format) != t2.Format(format)
+	}
+
+	// Process remaining backups
+	remainingBackups := backups[1:]
+
+	// Daily retention (different day than most recent)
+	for _, b := range remainingBackups {
+		if !toKeep[b.Path] && isDifferentPeriod(b.DateTime, mostRecent.DateTime, "2006-01-02") {
 			toKeep[b.Path] = true
-			dailyCount++
-			logSubStep("📌 Keeping daily backup: %s", filepath.Base(b.Path))
+			backupCategories[b.Path] = "daily"
+			logSubStep("📌 Keeping daily backup: %s (different day)", filepath.Base(b.Path))
+			break
 		}
 	}
 
-	// Keep weekly backups
-	weeklyMap := make(map[string]bool)
-	weeklyCount := 0
-	for _, b := range backups {
-		weekKey := b.DateTime.Format("2006-W%V")
-		if !weeklyMap[weekKey] && weeklyCount < policy.KeepWeekly && !toKeep[b.Path] {
-			weeklyMap[weekKey] = true
+	// Weekly retention (different week than most recent)
+	for _, b := range remainingBackups {
+		if !toKeep[b.Path] && isDifferentPeriod(b.DateTime, mostRecent.DateTime, "2006-W02") {
 			toKeep[b.Path] = true
-			weeklyCount++
-			logSubStep("📌 Keeping weekly backup: %s", filepath.Base(b.Path))
+			backupCategories[b.Path] = "weekly"
+			logSubStep("📌 Keeping weekly backup: %s (different week)", filepath.Base(b.Path))
+			break
 		}
 	}
 
-	// Keep monthly backups
-	monthlyMap := make(map[string]bool)
-	monthlyCount := 0
-	for _, b := range backups {
-		monthKey := b.DateTime.Format("2006-01")
-		if !monthlyMap[monthKey] && monthlyCount < policy.KeepMonthly && !toKeep[b.Path] {
-			monthlyMap[monthKey] = true
+	// Monthly retention (different month than most recent)
+	for _, b := range remainingBackups {
+		if !toKeep[b.Path] && isDifferentPeriod(b.DateTime, mostRecent.DateTime, "2006-01") {
 			toKeep[b.Path] = true
-			monthlyCount++
-			logSubStep("📌 Keeping monthly backup: %s", filepath.Base(b.Path))
+			backupCategories[b.Path] = "monthly"
+			logSubStep("📌 Keeping monthly backup: %s (different month)", filepath.Base(b.Path))
+			break
 		}
 	}
 
-	// Keep yearly backups
-	yearlyMap := make(map[string]bool)
-	yearlyCount := 0
-	for _, b := range backups {
-		yearKey := b.DateTime.Format("2006")
-		if !yearlyMap[yearKey] && yearlyCount < policy.KeepYearly && !toKeep[b.Path] {
-			yearlyMap[yearKey] = true
+	// Yearly retention (different year than most recent)
+	for _, b := range remainingBackups {
+		if !toKeep[b.Path] && isDifferentPeriod(b.DateTime, mostRecent.DateTime, "2006") {
 			toKeep[b.Path] = true
-			yearlyCount++
-			logSubStep("📌 Keeping yearly backup: %s", filepath.Base(b.Path))
+			backupCategories[b.Path] = "yearly"
+			logSubStep("📌 Keeping yearly backup: %s (different year)", filepath.Base(b.Path))
+			break
 		}
 	}
 
-	// Delete backups that are not in the toKeep map
+	// Delete unneeded backups
 	deletedCount := 0
 	for _, backup := range backups {
 		if !toKeep[backup.Path] {
-			logSubStep("🗑️  Deleting old backup: %s", filepath.Base(backup.Path))
+			logSubStep("🗑️  Deleting backup: %s (from same period as existing backup)",
+				filepath.Base(backup.Path))
 			if err := uploader.DeleteFile(backup.Path); err != nil {
 				logSubStep("⚠️  Failed to delete backup %s: %v", filepath.Base(backup.Path), err)
 			} else {
@@ -123,6 +127,28 @@ func manageRetention(uploader *DropboxUploader, backupPath string, policy Retent
 		}
 	}
 
-	logStep("✅ Retention management completed. Kept %d backups, deleted %d backups", len(toKeep), deletedCount)
+	// Count backups by their assigned categories
+	counts := map[string]int{
+		"daily":   0,
+		"weekly":  0,
+		"monthly": 0,
+		"yearly":  0,
+	}
+
+	for _, category := range backupCategories {
+		if category != "most_recent" {
+			counts[category]++
+		}
+	}
+
+	// Log detailed summary
+	logStep("📊 Retention Summary:")
+	logSubStep("Most Recent: 1")
+	logSubStep("Daily: %d/%d (from different days)", counts["daily"], policy.KeepDaily)
+	logSubStep("Weekly: %d/%d (from different weeks)", counts["weekly"], policy.KeepWeekly)
+	logSubStep("Monthly: %d/%d (from different months)", counts["monthly"], policy.KeepMonthly)
+	logSubStep("Yearly: %d/%d (from different years)", counts["yearly"], policy.KeepYearly)
+	logStep("✅ Retention completed. Kept %d backups, deleted %d backups", len(toKeep), deletedCount)
+
 	return nil
 }
