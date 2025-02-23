@@ -18,6 +18,16 @@ RUN CGO_ENABLED=0 GOOS=linux go build -o /volback .
 
 # Final stage
 FROM alpine:3.19
+ENV CONTAINER=""
+ENV BACKUP_ID=""
+ENV KEEP_DAILY="0"
+ENV KEEP_WEEKLY="0" 
+ENV KEEP_MONTHLY="0"
+ENV KEEP_YEARLY="0"
+ENV DROPBOX_REFRESH_TOKEN=""
+ENV DROPBOX_CLIENT_ID=""
+ENV DROPBOX_CLIENT_SECRET=""
+ENV DROPBOX_PATH=""
 
 # Install Docker client
 RUN apk add --no-cache docker-cli

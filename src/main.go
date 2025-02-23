@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -12,20 +13,23 @@ import (
 func main() {
 	logHeader("=== Docker Volume Backup Utility ===")
 
-	// Flags
-	container := flag.String("container", "", "Container name for volume operation")
-	stopContainer := flag.String("stop", "", "Container name to stop and start")
-	id := flag.String("id", "", "Unique identifier for the backup (optional)")
+	// Define flags
+	container := flag.String("container", os.Getenv("CONTAINER"), "Container name for volume operation")
+	stopContainer := flag.String("stop", os.Getenv("STOP_CONTAINER"), "Container name to stop and start")
+	id := flag.String("id", os.Getenv("BACKUP_ID"), "Unique identifier for the backup (optional)")
+
 	// Dropbox flags
-	dropboxRefreshToken := flag.String("dropbox-refresh-token", "", "Dropbox refresh token")
-	dropboxClientID := flag.String("dropbox-client-id", "", "Dropbox client ID")
-	dropboxClientSecret := flag.String("dropbox-client-secret", "", "Dropbox client secret")
-	dropboxPath := flag.String("dropbox-path", "", "Dropbox destination path (e.g., /backups)")
-	// Add retention flags
-	keepDaily := flag.Int("keep-daily", 0, "Number of daily backups to keep")
-	keepWeekly := flag.Int("keep-weekly", 0, "Number of weekly backups to keep")
-	keepMonthly := flag.Int("keep-monthly", 0, "Number of monthly backups to keep")
-	keepYearly := flag.Int("keep-yearly", 0, "Number of yearly backups to keep")
+	dropboxRefreshToken := flag.String("dropbox-refresh-token", os.Getenv("DROPBOX_REFRESH_TOKEN"), "Dropbox refresh token")
+	dropboxClientID := flag.String("dropbox-client-id", os.Getenv("DROPBOX_CLIENT_ID"), "Dropbox client ID")
+	dropboxClientSecret := flag.String("dropbox-client-secret", os.Getenv("DROPBOX_CLIENT_SECRET"), "Dropbox client secret")
+	dropboxPath := flag.String("dropbox-path", os.Getenv("DROPBOX_PATH"), "Dropbox destination path (e.g., /backups)")
+
+	// Retention flags with environment variable fallbacks
+	keepDaily := flag.Int("keep-daily", getEnvInt("KEEP_DAILY", 0), "Number of daily backups to keep")
+	keepWeekly := flag.Int("keep-weekly", getEnvInt("KEEP_WEEKLY", 0), "Number of weekly backups to keep")
+	keepMonthly := flag.Int("keep-monthly", getEnvInt("KEEP_MONTHLY", 0), "Number of monthly backups to keep")
+	keepYearly := flag.Int("keep-yearly", getEnvInt("KEEP_YEARLY", 0), "Number of yearly backups to keep")
+
 	flag.Parse()
 
 	if err := validateInputs(*container); err != nil {
@@ -137,4 +141,13 @@ func validateInputs(container string) error {
 	}
 	logStep("✅ Container: %s", container)
 	return nil
+}
+
+func getEnvInt(key string, defaultVal int) int {
+	if value := os.Getenv(key); value != "" {
+		if i, err := strconv.Atoi(value); err == nil {
+			return i
+		}
+	}
+	return defaultVal
 }

@@ -27,3 +27,4 @@ go.work.sum
 repopack.txt
 repopack.yml
 output
+_secret.sh
