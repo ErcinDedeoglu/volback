@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
@@ -14,17 +15,13 @@ func main() {
 	logHeader("=== Docker Volume Backup Utility ===")
 
 	// Define flags
-	container := flag.String("container", os.Getenv("CONTAINER"), "Container name for volume operation")
-	stopContainer := flag.String("stop", os.Getenv("STOP_CONTAINER"), "Container name to stop and start")
-	id := flag.String("id", os.Getenv("BACKUP_ID"), "Unique identifier for the backup (optional)")
-
-	// Dropbox flags
+	containersJSON := flag.String("containers", os.Getenv("CONTAINERS"), "JSON array of container configurations")
 	dropboxRefreshToken := flag.String("dropbox-refresh-token", os.Getenv("DROPBOX_REFRESH_TOKEN"), "Dropbox refresh token")
 	dropboxClientID := flag.String("dropbox-client-id", os.Getenv("DROPBOX_CLIENT_ID"), "Dropbox client ID")
 	dropboxClientSecret := flag.String("dropbox-client-secret", os.Getenv("DROPBOX_CLIENT_SECRET"), "Dropbox client secret")
 	dropboxPath := flag.String("dropbox-path", os.Getenv("DROPBOX_PATH"), "Dropbox destination path (e.g., /backups)")
 
-	// Retention flags with environment variable fallbacks
+	// Retention flags
 	keepDaily := flag.Int("keep-daily", getEnvInt("KEEP_DAILY", 0), "Number of daily backups to keep")
 	keepWeekly := flag.Int("keep-weekly", getEnvInt("KEEP_WEEKLY", 0), "Number of weekly backups to keep")
 	keepMonthly := flag.Int("keep-monthly", getEnvInt("KEEP_MONTHLY", 0), "Number of monthly backups to keep")
@@ -32,127 +29,48 @@ func main() {
 
 	flag.Parse()
 
-	if err := validateInputs(*container); err != nil {
+	// Parse container configurations
+	var configs ContainerConfigs
+	if err := json.Unmarshal([]byte(*containersJSON), &configs); err != nil {
+		logStep("❌ Failed to parse container configurations: %v", err)
 		os.Exit(1)
 	}
 
-	// Use --id if provided, otherwise default to container name
-	backupID := *id
-	if backupID == "" {
-		backupID = *container
-	}
-
-	// Create temporary working directory
-	tempDir := filepath.Join("/tmp", "volback-"+time.Now().Format("20060102150405"))
-	if err := os.MkdirAll(tempDir, 0755); err != nil {
-		logStep("❌ Failed to create temporary directory: %v", err)
-		os.Exit(1)
-	}
-	defer os.RemoveAll(tempDir) // Clean up temp directory when done
-
-	// Stop container if requested
-	if *stopContainer != "" {
-		if err := stopDockerContainer(*stopContainer); err != nil {
-			os.Exit(1)
-		}
-	}
-
-	// Get container volumes
-	volumeResult, err := getContainerVolumes(*container)
-	if err != nil {
-		logStep("❌ Failed to get container volumes: %v", err)
-		os.Exit(1)
-	}
-	if volumeResult.Status == "Failed" {
-		logStep("❌ Failed to get container volumes: %s", volumeResult.Error)
+	// Validate inputs
+	if len(configs) == 0 {
+		logStep("❌ No container configurations provided")
 		os.Exit(1)
 	}
 
-	// Process volumes
-	if err := processVolumes(*container, volumeResult.Volumes, tempDir); err != nil {
+	if *dropboxRefreshToken == "" || *dropboxClientID == "" || *dropboxClientSecret == "" {
+		logStep("❌ Dropbox configuration is required")
 		os.Exit(1)
 	}
 
-	// Start container if it was stopped
-	if *stopContainer != "" {
-		if err := startDockerContainer(*stopContainer); err != nil {
-			os.Exit(1)
-		}
-	}
-
+	// Initialize Dropbox uploader
 	uploader := NewDropboxUploader(
 		*dropboxRefreshToken,
 		*dropboxClientID,
 		*dropboxClientSecret,
 	)
 
-	// Upload to cloud storage
-	if *dropboxRefreshToken != "" && *dropboxClientID != "" && *dropboxClientSecret != "" {
-		logHeader("📤 Uploading backup to Dropbox...")
+	// Create retention policy
+	retentionPolicy := RetentionPolicy{
+		KeepDaily:   *keepDaily,
+		KeepWeekly:  *keepWeekly,
+		KeepMonthly: *keepMonthly,
+		KeepYearly:  *keepYearly,
+	}
 
-		// Generate timestamp-based filename
-		timestamp := time.Now().Format("20060102.150405")
-		backupFileName := timestamp + ".7z"
+	logStep("📋 Found %d containers to process", len(configs))
 
-		// Construct source and target paths with .7z extension
-		localBackupPath := filepath.Join(tempDir, *container+".7z")
-		dropboxTargetPath := filepath.Join(*dropboxPath, backupID, backupFileName)
-
-		// Ensure dropbox path starts with "/"
-		if !strings.HasPrefix(dropboxTargetPath, "/") {
-			dropboxTargetPath = "/" + dropboxTargetPath
-		}
-
-		logStep("📁 Uploading to Dropbox: %s", dropboxTargetPath)
-		if err := uploader.Upload(localBackupPath, dropboxTargetPath); err != nil {
-			logStep("❌ Dropbox upload failed: %v", err)
-			os.Exit(1)
-		}
-		logStep("✅ Backup successfully uploaded to Dropbox")
-
-		// Add retention management after successful upload
-		if *keepDaily > 0 || *keepWeekly > 0 || *keepMonthly > 0 || *keepYearly > 0 {
-			policy := RetentionPolicy{
-				KeepDaily:   *keepDaily,
-				KeepWeekly:  *keepWeekly,
-				KeepMonthly: *keepMonthly,
-				KeepYearly:  *keepYearly,
-			}
-
-			logHeader("🧹 Starting retention management...")
-			logStep("📊 Retention Policy:")
-			logSubStep("Daily backups to keep: %d", policy.KeepDaily)
-			logSubStep("Weekly backups to keep: %d", policy.KeepWeekly)
-			logSubStep("Monthly backups to keep: %d", policy.KeepMonthly)
-			logSubStep("Yearly backups to keep: %d", policy.KeepYearly)
-
-			retentionPath := filepath.Join(*dropboxPath, backupID)
-			logStep("📁 Processing retention for path: %s", retentionPath)
-
-			if err := manageRetention(uploader, retentionPath, policy); err != nil {
-				logStep("❌ Retention management failed: %v", err)
-				// Decide if you want to exit here or continue
-				// os.Exit(1) // Uncomment if you want to exit on retention failure
-			} else {
-				logStep("✅ Retention management completed successfully")
-			}
-		}
-	} else {
-		logStep("❌ No storage provider configured. Please specify a storage provider (e.g., Dropbox)")
+	// Process all containers
+	if err := processContainers(configs, uploader, *dropboxPath, retentionPolicy); err != nil {
+		logStep("❌ Failed to process containers: %v", err)
 		os.Exit(1)
 	}
 
 	logHeader("✨ Backup process completed successfully!")
-}
-
-func validateInputs(container string) error {
-	logHeader("📋 Validating inputs...")
-	if container == "" {
-		logStep("❌ Container name is required (use --container flag)")
-		return fmt.Errorf("container name required")
-	}
-	logStep("✅ Container: %s", container)
-	return nil
 }
 
 func getEnvInt(key string, defaultVal int) int {
@@ -162,4 +80,121 @@ func getEnvInt(key string, defaultVal int) int {
 		}
 	}
 	return defaultVal
+}
+
+func processContainers(configs ContainerConfigs, uploader *DropboxUploader, dropboxPath string, retentionPolicy RetentionPolicy) error {
+	// Create dependency graph
+	dependencies := make(map[string][]string)
+	for _, config := range configs {
+		if len(config.DependsOn) > 0 {
+			dependencies[config.Container] = config.DependsOn
+		}
+	}
+
+	// Process containers in correct order
+	processed := make(map[string]bool)
+	var processContainer func(config ContainerConfig) error
+
+	processContainer = func(config ContainerConfig) error {
+		// Check if already processed
+		if processed[config.Container] {
+			return nil
+		}
+
+		// Process dependencies first
+		if deps, ok := dependencies[config.Container]; ok {
+			for _, dep := range deps {
+				// Find dependency config
+				for _, depConfig := range configs {
+					if depConfig.Container == dep {
+						if err := processContainer(depConfig); err != nil {
+							return err
+						}
+						break
+					}
+				}
+			}
+		}
+
+		logHeader("📦 Processing container: %s", config.Container)
+
+		// Stop container if required
+		if config.Stop {
+			if err := stopDockerContainer(config.Container); err != nil {
+				return err
+			}
+		}
+
+		// Create temporary working directory
+		tempDir := filepath.Join("/tmp", "volback-"+config.Container+"-"+time.Now().Format("20060102150405"))
+		if err := os.MkdirAll(tempDir, 0755); err != nil {
+			return fmt.Errorf("failed to create temporary directory: %v", err)
+		}
+		defer os.RemoveAll(tempDir)
+
+		// Get and process volumes
+		volumeResult, err := getContainerVolumes(config.Container)
+		if err != nil {
+			return err
+		}
+		if volumeResult.Status == "Failed" {
+			return fmt.Errorf("failed to get container volumes: %s", volumeResult.Error)
+		}
+
+		if err := processVolumes(config.Container, volumeResult.Volumes, tempDir); err != nil {
+			return err
+		}
+
+		// Start container if it was stopped
+		if config.Stop {
+			if err := startDockerContainer(config.Container); err != nil {
+				return err
+			}
+		}
+
+		// Upload to Dropbox using existing logic
+		if uploader != nil {
+			logHeader("📤 Uploading backup to Dropbox...")
+
+			// Generate timestamp-based filename
+			timestamp := time.Now().Format("20060102.150405")
+			backupFileName := timestamp + ".7z"
+
+			// Construct source and target paths
+			localBackupPath := filepath.Join(tempDir, config.Container+".7z")
+			dropboxTargetPath := filepath.Join(dropboxPath, config.BackupID, backupFileName)
+
+			// Ensure dropbox path starts with "/"
+			if !strings.HasPrefix(dropboxTargetPath, "/") {
+				dropboxTargetPath = "/" + dropboxTargetPath
+			}
+
+			logStep("📁 Uploading to Dropbox: %s", dropboxTargetPath)
+			if err := uploader.Upload(localBackupPath, dropboxTargetPath); err != nil {
+				return fmt.Errorf("Dropbox upload failed: %v", err)
+			}
+			logStep("✅ Backup successfully uploaded to Dropbox")
+
+			// Apply retention policy
+			if retentionPolicy.KeepDaily > 0 || retentionPolicy.KeepWeekly > 0 ||
+				retentionPolicy.KeepMonthly > 0 || retentionPolicy.KeepYearly > 0 {
+				retentionPath := filepath.Join(dropboxPath, config.BackupID)
+				if err := manageRetention(uploader, retentionPath, retentionPolicy); err != nil {
+					return fmt.Errorf("retention management failed: %v", err)
+				}
+			}
+		}
+
+		processed[config.Container] = true
+		return nil
+	}
+
+	// Process all containers
+	for _, config := range configs {
+		if err := processContainer(config); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

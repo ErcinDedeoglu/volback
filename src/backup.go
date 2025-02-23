@@ -13,6 +13,22 @@ func processVolumes(container string, volumes []Volume, outputDir string) error 
 
 	for i, volume := range volumes {
 		logHeader("🔸 Volume %d/%d:", i+1, len(volumes))
+		logSubStep("Source: %s", volume.Source)
+		logSubStep("Destination: %s", volume.Destination)
+		logSubStep("Type: %s", volume.Type)
+
+		// Skip tmpfs volumes
+		if volume.Type == "tmpfs" {
+			logSubStep("⏭️  Skipping tmpfs volume")
+			continue
+		}
+
+		// Skip volumes with empty source
+		if volume.Source == "" {
+			logSubStep("⏭️  Skipping volume with empty source")
+			continue
+		}
+
 		if err := backupVolume(volume, tempDir); err != nil {
 			return err
 		}
@@ -26,11 +42,7 @@ func processVolumes(container string, volumes []Volume, outputDir string) error 
 }
 
 func backupVolume(volume Volume, tempDir string) error {
-	logSubStep("Source: %s", volume.Source)
-	logSubStep("Destination: %s", volume.Destination)
-	logSubStep("Type: %s", volume.Type)
 	logSubStep("💾 Creating backup with Packmate...")
-
 	args := []string{
 		"run", "--rm",
 		"-v", volume.Source + ":/source:ro",
@@ -43,6 +55,7 @@ func backupVolume(volume Volume, tempDir string) error {
 		"--extra=-ms=off",
 	}
 
+	logSubStep("⚙️  Executing: docker %v", args)
 	_, err := executeCommand("docker", args...)
 	return err
 }

@@ -40,3 +40,12 @@ type RetentionPolicy struct {
 	KeepMonthly int
 	KeepYearly  int
 }
+
+type ContainerConfig struct {
+	Container string   `json:"container"`
+	BackupID  string   `json:"backup_id"`
+	Stop      bool     `json:"stop"`
+	DependsOn []string `json:"depends_on,omitempty"`
+}
+
+type ContainerConfigs []ContainerConfig
