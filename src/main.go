@@ -171,7 +171,7 @@ func processContainers(configs ContainerConfigs, uploader *DropboxUploader, drop
 
 			logStep("📁 Uploading to Dropbox: %s", dropboxTargetPath)
 			if err := uploader.Upload(localBackupPath, dropboxTargetPath); err != nil {
-				return fmt.Errorf("Dropbox upload failed: %v", err)
+				return fmt.Errorf("dropbox upload failed: %v", err)
 			}
 			logStep("✅ Backup successfully uploaded to Dropbox")
 
