@@ -14,17 +14,34 @@ go run ./*.go --container test1 \
     --dropbox-client-secret "secret" \
     --dropbox-path "/backups/docker"
 
+docker run --rm -it \
+  -e CONTAINER=test1 \
+  -e BACKUP_ID=a-unique-name \
+  -e KEEP_DAILY=1 \
+  -e KEEP_WEEKLY=1 \
+  -e KEEP_MONTHLY=1 \
+  -e KEEP_YEARLY=1 \
+  -e DROPBOX_REFRESH_TOKEN=xxx \
+  -e DROPBOX_CLIENT_ID=xxx \
+  -e DROPBOX_CLIENT_SECRET=xxx \
+  -e DROPBOX_PATH=/backups/docker \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  -v /tmp:/tmp \
+  dublok/volback:latest
+
+
 docker run -d \
-    -e CONTAINER=test1 \
-    -e BACKUP_ID=a-unique-name-to-identify-backup \
-    -e KEEP_DAILY=1 \
-    -e KEEP_WEEKLY=1 \
-    -e KEEP_MONTHLY=1 \
-    -e KEEP_YEARLY=1 \
-    -e DROPBOX_REFRESH_TOKEN=token \
-    -e DROPBOX_CLIENT_ID=id \
-    -e DROPBOX_CLIENT_SECRET=secret \
-    -e DROPBOX_PATH=/backups/docker \
-    -v /var/run/docker.sock:/var/run/docker.sock \
-    -v /tmp:/tmp \
-    dublok/volback:latest
+  -e CONTAINER=test1 \
+  -e BACKUP_ID=a-unique-name \
+  -e KEEP_DAILY=1 \
+  -e KEEP_WEEKLY=1 \
+  -e KEEP_MONTHLY=1 \
+  -e KEEP_YEARLY=1 \
+  -e DROPBOX_REFRESH_TOKEN=xxx \
+  -e DROPBOX_CLIENT_ID=xxx \
+  -e DROPBOX_CLIENT_SECRET=xxx \
+  -e DROPBOX_PATH=/backups/docker \
+  -e CRON_SCHEDULE="0 0 * * *" \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  -v /tmp:/tmp \
+  dublok/volback:latest
