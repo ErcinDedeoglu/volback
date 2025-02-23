@@ -7,8 +7,8 @@ RUN apk add --no-cache gcc musl-dev
 # Set working directory
 WORKDIR /app
 
-# Copy the src directory contents
-COPY src/ .
+# Copy all files from current directory
+COPY . .
 
 # Download dependencies
 RUN go mod download
