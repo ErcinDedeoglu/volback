@@ -12,14 +12,25 @@ format_schedule_message() {
 
 # Function to calculate next schedule time
 calculate_next_time() {
-    current_minute=$(date +%M)
-    next_minute=$(( (current_minute + 1) % 60 ))
-    next_hour=$(date +%H)
-    if [ "$next_minute" -lt "$current_minute" ]; then
-        next_hour=$(( (next_hour + 1) % 24 ))
-    fi
+    # Parse the cron schedule from environment variable
+    schedule="${CRON_SCHEDULE}"
     
-    date -d "$(date +%Y-%m-%d) $next_hour:$next_minute:00" +%s
+    # Use busybox date to get next scheduled time
+    current_timestamp=$(date +%s)
+    next_timestamp=$(busybox date -d "$(busybox date -d "@$current_timestamp" "+\
+        $(echo "$schedule" | awk '{printf "+%s minute +%s hour +%s day +%s month +%s weekday", 
+        $1=="*"?0:$1, 
+        $2=="*"?0:$2,
+        $3=="*"?0:$3,
+        $4=="*"?0:$4,
+        $5=="*"?0:$5}')")" +%s)
+
+    # If the calculated time is in the past, add a day
+    if [ "$next_timestamp" -le "$current_timestamp" ]; then
+        next_timestamp=$(busybox date -d "$(busybox date -d "@$next_timestamp" "+%Y-%m-%d") + 1 day" +%s)
+    fi
+
+    echo "$next_timestamp"
 }
 
 # Function to create cron job
@@ -33,14 +44,25 @@ setup_cron() {
 
 # Function to calculate next execution
 calculate_next_time() {
-    current_minute=\$(date +%M)
-    next_minute=\$(( (current_minute + 1) % 60 ))
-    next_hour=\$(date +%H)
-    if [ "\$next_minute" -lt "\$current_minute" ]; then
-        next_hour=\$(( (next_hour + 1) % 24 ))
-    fi
+    # Parse the cron schedule from environment variable
+    schedule="${CRON_SCHEDULE}"
     
-    date -d "\$(date +%Y-%m-%d) \$next_hour:\$next_minute:00" +%s
+    # Use busybox date to get next scheduled time
+    current_timestamp=\$(date +%s)
+    next_timestamp=\$(busybox date -d "\$(busybox date -d "@\$current_timestamp" "+\
+        \$(echo "\$schedule" | awk '{printf "+%s minute +%s hour +%s day +%s month +%s weekday", 
+        \$1=="*"?0:\$1, 
+        \$2=="*"?0:\$2,
+        \$3=="*"?0:\$3,
+        \$4=="*"?0:\$4,
+        \$5=="*"?0:\$5}')")" +%s)
+
+    # If the calculated time is in the past, add a day
+    if [ "\$next_timestamp" -le "\$current_timestamp" ]; then
+        next_timestamp=\$(busybox date -d "\$(busybox date -d "@\$next_timestamp" "+%Y-%m-%d") + 1 day" +%s)
+    fi
+
+    echo "\$next_timestamp"
 }
 
 # Function to format schedule message
