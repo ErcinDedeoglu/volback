@@ -43,8 +43,8 @@ type RetentionPolicy struct {
 
 type ContainerConfig struct {
 	Container string   `json:"container"`
-	BackupID  string   `json:"backup_id"`
-	Stop      bool     `json:"stop"`
+	BackupID  *string  `json:"backup_id,omitempty"`
+	Stop      *bool    `json:"stop,omitempty"`
 	DependsOn []string `json:"depends_on,omitempty"`
 }
 

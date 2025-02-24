@@ -116,7 +116,7 @@ func processContainers(configs ContainerConfigs, uploader *DropboxUploader, drop
 		logHeader("📦 Processing container: %s", config.Container)
 
 		// Stop container if required
-		if config.Stop {
+		if shouldStop(config) {
 			if err := stopDockerContainer(config.Container); err != nil {
 				return err
 			}
@@ -150,7 +150,7 @@ func processContainers(configs ContainerConfigs, uploader *DropboxUploader, drop
 		}
 
 		// Start container if it was stopped
-		if config.Stop {
+		if shouldStop(config) {
 			if err := startDockerContainer(config.Container); err != nil {
 				return err
 			}
@@ -162,7 +162,10 @@ func processContainers(configs ContainerConfigs, uploader *DropboxUploader, drop
 			timestamp := time.Now().Format("20060102.150405")
 			backupFileName := timestamp + ".7z"
 			localBackupPath := filepath.Join(tempDir, config.Container+".7z")
-			dropboxTargetPath := filepath.Join(dropboxPath, config.BackupID, backupFileName)
+
+			// Use the helper function to get the backup ID
+			backupID := getBackupID(config)
+			dropboxTargetPath := filepath.Join(dropboxPath, backupID, backupFileName)
 
 			if !strings.HasPrefix(dropboxTargetPath, "/") {
 				dropboxTargetPath = "/" + dropboxTargetPath
@@ -177,7 +180,8 @@ func processContainers(configs ContainerConfigs, uploader *DropboxUploader, drop
 			// Apply retention policy
 			if retentionPolicy.KeepDaily > 0 || retentionPolicy.KeepWeekly > 0 ||
 				retentionPolicy.KeepMonthly > 0 || retentionPolicy.KeepYearly > 0 {
-				retentionPath := filepath.Join(dropboxPath, config.BackupID)
+				// Use the helper function here as well
+				retentionPath := filepath.Join(dropboxPath, backupID)
 				if err := manageRetention(uploader, retentionPath, retentionPolicy); err != nil {
 					return fmt.Errorf("retention management failed: %v", err)
 				}
@@ -196,4 +200,15 @@ func processContainers(configs ContainerConfigs, uploader *DropboxUploader, drop
 	}
 
 	return nil
+}
+
+func getBackupID(config ContainerConfig) string {
+	if config.BackupID != nil && *config.BackupID != "" {
+		return *config.BackupID
+	}
+	return config.Container
+}
+
+func shouldStop(config ContainerConfig) bool {
+	return config.Stop != nil && *config.Stop
 }
