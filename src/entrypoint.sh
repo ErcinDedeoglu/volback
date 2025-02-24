@@ -1,51 +1,7 @@
 #!/bin/sh
 
-format_duration() {
-    local seconds=$1
-    local days=$((seconds / 86400))
-    local hours=$(((seconds % 86400) / 3600))
-    local minutes=$(((seconds % 3600) / 60))
-    local remaining_seconds=$((seconds % 60))
-    
-    local output=""
-    [ $days -gt 0 ] && output="${output}${days}d "
-    [ $hours -gt 0 ] && output="${output}${hours}h "
-    [ $minutes -gt 0 ] && output="${output}${minutes}m "
-    [ $remaining_seconds -gt 0 ] && output="${output}${remaining_seconds}s"
-    
-    echo "$output"
-}
-
-# Function to format schedule message
-format_schedule_message() {
-    current_time=$(date +%s)
-    target_time=$1
-    remaining_seconds=$(( target_time - current_time ))
-    human_readable=$(format_duration $remaining_seconds)
-    
-    echo "🕐 Current time: $(date '+%Y-%m-%d %H:%M:%S UTC')"
-    echo "⏳ Next backup in ${human_readable} at $(date -d @$target_time '+%Y-%m-%d %H:%M:%S UTC')"
-}
-
-# Function to calculate next schedule time
-calculate_next_time() {
-    # Get current timestamp
-    now=$(date +%s)
-    
-    # Get today's midnight timestamp
-    today_midnight=$(date -d "00:00" +%s)
-    
-    # Get tomorrow's midnight by adding 24 hours (86400 seconds)
-    tomorrow_midnight=$((today_midnight + 86400))
-    
-    # If current time is before today's midnight, use today's midnight
-    # Otherwise use tomorrow's midnight
-    if [ $now -lt $today_midnight ]; then
-        echo $today_midnight
-    else
-        echo $tomorrow_midnight
-    fi
-}
+# Source shared functions
+. /usr/local/bin/functions.sh
 
 # Function to create cron job
 setup_cron() {
@@ -55,53 +11,7 @@ setup_cron() {
     # Create a script that will be executed by cron
     cat > /usr/local/bin/backup-job.sh << EOF
 #!/bin/sh
-
-# Function to calculate next execution
-calculate_next_time() {
-    # Get current timestamp
-    now=\$(date +%s)
-    
-    # Get today's midnight timestamp
-    today_midnight=\$(date -d "00:00" +%s)
-    
-    # Get tomorrow's midnight by adding 24 hours (86400 seconds)
-    tomorrow_midnight=\$((today_midnight + 86400))
-    
-    # If current time is before today's midnight, use today's midnight
-    # Otherwise use tomorrow's midnight
-    if [ \$now -lt \$today_midnight ]; then
-        echo \$today_midnight
-    else
-        echo \$tomorrow_midnight
-    fi
-}
-
-format_duration() {
-    local seconds=\$1
-    local days=\$((seconds / 86400))
-    local hours=\$(((seconds % 86400) / 3600))
-    local minutes=\$(((seconds % 3600) / 60))
-    local remaining_seconds=\$((seconds % 60))
-    
-    local output=""
-    [ \$days -gt 0 ] && output="\${output}\${days}d "
-    [ \$hours -gt 0 ] && output="\${output}\${hours}h "
-    [ \$minutes -gt 0 ] && output="\${output}\${minutes}m "
-    [ \$remaining_seconds -gt 0 ] && output="\${output}\${remaining_seconds}s"
-    
-    echo "\$output"
-}
-
-# Function to format schedule message
-format_schedule_message() {
-    current_time=\$(date +%s)
-    target_time=\$1
-    remaining_seconds=\$(( target_time - current_time ))
-    human_readable=\$(format_duration \$remaining_seconds)
-    
-    echo "🕐 Current time: \$(date '+%Y-%m-%d %H:%M:%S UTC')"
-    echo "⏳ Next backup in \${human_readable} at \$(date -d @\$target_time '+%Y-%m-%d %H:%M:%S UTC')"
-}
+. /usr/local/bin/functions.sh
 
 (
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
