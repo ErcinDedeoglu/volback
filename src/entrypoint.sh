@@ -5,7 +5,7 @@ format_schedule_message() {
     current_time=$(date +%s)
     target_time=$1
     remaining_seconds=$(( target_time - current_time ))
-    
+    echo "🕐 Current time: $(date '+%Y-%m-%d %H:%M:%S UTC')"
     echo "⏳ Next backup in $remaining_seconds seconds at $(date -d @$target_time '+%Y-%m-%d %H:%M:%S UTC')"
 }
 
@@ -52,9 +52,13 @@ format_schedule_message() {
 }
 
 (
-    echo "=== Backup started at \$(date '+%Y-%m-%d %H:%M:%S UTC') ==="
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "🔄 Backup Process Started"
+    echo "📅 \$(date '+%Y-%m-%d %H:%M:%S UTC')"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo
     /usr/local/bin/volback \\
-        -containers='$(echo "${CONTAINERS}" | sed 's/\$/\\$/g')' \\
+        -containers='${CONTAINERS}' \\
         -dropbox-refresh-token='${DROPBOX_REFRESH_TOKEN}' \\
         -dropbox-client-id='${DROPBOX_CLIENT_ID}' \\
         -dropbox-client-secret='${DROPBOX_CLIENT_SECRET}' \\
@@ -63,9 +67,13 @@ format_schedule_message() {
         -keep-weekly=${KEEP_WEEKLY} \\
         -keep-monthly=${KEEP_MONTHLY} \\
         -keep-yearly=${KEEP_YEARLY}
-    echo "=== Backup completed at \$(date '+%Y-%m-%d %H:%M:%S UTC') ==="
+    echo
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "✅ Backup Process Completed"
+    echo "📅 \$(date '+%Y-%m-%d %H:%M:%S UTC')"
     next_time=\$(calculate_next_time)
     format_schedule_message "\$next_time"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo
 ) >> /var/log/volback.log 2>&1
 EOF
@@ -86,11 +94,13 @@ EOF
     tail -F /var/log/volback.log &
     
     # Show initial schedule information
-    echo "🕒 Starting scheduled backup service"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "🕒 Backup Service Started"
     echo "📝 Schedule: ${CRON_SCHEDULE}"
     echo "📋 Log file: /var/log/volback.log"
     next_time=$(calculate_next_time)
     format_schedule_message "$next_time"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo
     
     # Start crond and wait
