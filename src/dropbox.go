@@ -1,12 +1,14 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 )
@@ -221,21 +223,243 @@ func (d *DropboxUploader) ensureValidToken() error {
 // sourcePath: local file path
 // targetPath: destination path in Dropbox (should start with "/")
 func (d *DropboxUploader) Upload(sourcePath, targetPath string) error {
-	// Validate inputs
-	if sourcePath == "" || targetPath == "" {
-		return fmt.Errorf("source and target paths are required")
-	}
+	const CHUNK_SIZE = 150 * 1024 * 1024 // 150MB chunks
 
-	if err := d.ensureValidToken(); err != nil {
-		return fmt.Errorf("failed to ensure valid token: %v", err)
-	}
-
+	// Open and stat the source file
 	file, err := os.Open(sourcePath)
 	if err != nil {
 		return fmt.Errorf("failed to open source file: %v", err)
 	}
 	defer file.Close()
 
+	fileInfo, err := file.Stat()
+	if err != nil {
+		return fmt.Errorf("failed to stat file: %v", err)
+	}
+	fileSize := fileInfo.Size()
+
+	if err := d.ensureValidToken(); err != nil {
+		return fmt.Errorf("failed to ensure valid token: %v", err)
+	}
+
+	logStep("📁 Starting upload for: %s", filepath.Base(sourcePath))
+	logSubStep("Target path: %s", targetPath)
+	logSubStep("File size: %.2f MB", float64(fileSize)/1024/1024)
+
+	// For files larger than CHUNK_SIZE, use upload session
+	if fileSize > CHUNK_SIZE {
+		logStep("📦 Large file detected - using chunked upload")
+		return d.uploadLargeFile(file, targetPath, fileSize, CHUNK_SIZE)
+	}
+
+	// For smaller files, use simple upload
+	logStep("📦 Small file detected - using simple upload")
+	return d.uploadSmallFile(file, targetPath)
+}
+
+func (d *DropboxUploader) uploadLargeFile(file *os.File, targetPath string, fileSize int64, chunkSize int64) error {
+	logStep("📦 Starting chunked upload process...")
+	logSubStep("Total file size: %.2f MB", float64(fileSize)/1024/1024)
+	logSubStep("Chunk size: %.2f MB", float64(chunkSize)/1024/1024)
+	totalChunks := (fileSize + chunkSize - 1) / chunkSize
+	logSubStep("Total chunks: %d", totalChunks)
+
+	// Start upload session
+	logStep("📤 Uploading first chunk...")
+	sessionID, err := d.startUploadSession(file, chunkSize)
+	if err != nil {
+		return fmt.Errorf("failed to start upload session: %v", err)
+	}
+	logSubStep("✅ First chunk uploaded successfully")
+	logSubStep("Session ID: %s", sessionID)
+
+	// Upload chunks
+	offset := chunkSize
+	currentChunk := 2 // Starting from 2 as we've already uploaded the first chunk
+	for offset < fileSize {
+		remaining := fileSize - offset
+		currentChunkSize := chunkSize
+		if remaining < chunkSize {
+			currentChunkSize = remaining
+		}
+
+		logStep("📤 Uploading chunk %d/%d...", currentChunk, totalChunks)
+		logSubStep("Offset: %.2f MB", float64(offset)/1024/1024)
+		logSubStep("Chunk size: %.2f MB", float64(currentChunkSize)/1024/1024)
+
+		if err := d.appendToUploadSession(file, sessionID, offset, currentChunkSize); err != nil {
+			return fmt.Errorf("failed to append chunk: %v", err)
+		}
+		logSubStep("✅ Chunk uploaded successfully")
+
+		offset += currentChunkSize
+		currentChunk++
+	}
+
+	// Finish upload session
+	logStep("📤 Finalizing upload...")
+	if err := d.finishUploadSession(file, sessionID, targetPath, offset); err != nil {
+		return err
+	}
+	logStep("✅ Upload completed successfully")
+	return nil
+}
+
+func (d *DropboxUploader) startUploadSession(file *os.File, chunkSize int64) (string, error) {
+	const uploadSessionStartURL = "https://content.dropboxapi.com/2/files/upload_session/start"
+
+	logSubStep("Starting upload session...")
+	buffer := make([]byte, chunkSize)
+	n, err := file.Read(buffer)
+	if err != nil && err != io.EOF {
+		return "", err
+	}
+	logSubStep("Read %.2f MB from file", float64(n)/1024/1024)
+
+	req, err := http.NewRequest("POST", uploadSessionStartURL, bytes.NewReader(buffer[:n]))
+	if err != nil {
+		return "", err
+	}
+
+	req.Header.Set("Authorization", "Bearer "+d.accessToken)
+	req.Header.Set("Content-Type", "application/octet-stream")
+
+	logSubStep("Sending request to Dropbox...")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return "", fmt.Errorf("upload session start failed with status %d: %s", resp.StatusCode, string(body))
+	}
+
+	var result struct {
+		SessionID string `json:"session_id"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return "", err
+	}
+
+	return result.SessionID, nil
+}
+
+func (d *DropboxUploader) appendToUploadSession(file *os.File, sessionID string, offset, chunkSize int64) error {
+	const uploadSessionAppendURL = "https://content.dropboxapi.com/2/files/upload_session/append_v2"
+
+	buffer := make([]byte, chunkSize)
+	n, err := file.ReadAt(buffer, offset)
+	if err != nil && err != io.EOF {
+		return err
+	}
+
+	// The correct API argument structure for append_v2
+	cursor := struct {
+		Cursor struct {
+			SessionID string `json:"session_id"`
+			Offset    int64  `json:"offset"`
+		} `json:"cursor"`
+		Close bool `json:"close"`
+	}{
+		Cursor: struct {
+			SessionID string `json:"session_id"`
+			Offset    int64  `json:"offset"`
+		}{
+			SessionID: sessionID,
+			Offset:    offset,
+		},
+		Close: false,
+	}
+
+	cursorJSON, err := json.Marshal(cursor)
+	if err != nil {
+		return err
+	}
+
+	req, err := http.NewRequest("POST", uploadSessionAppendURL, bytes.NewReader(buffer[:n]))
+	if err != nil {
+		return err
+	}
+
+	req.Header.Set("Authorization", "Bearer "+d.accessToken)
+	req.Header.Set("Content-Type", "application/octet-stream")
+	req.Header.Set("Dropbox-API-Arg", string(cursorJSON))
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("upload session append failed with status %d: %s", resp.StatusCode, string(body))
+	}
+
+	return nil
+}
+
+func (d *DropboxUploader) finishUploadSession(file *os.File, sessionID string, targetPath string, offset int64) error {
+	const uploadSessionFinishURL = "https://content.dropboxapi.com/2/files/upload_session/finish"
+
+	finishArg := struct {
+		Cursor struct {
+			SessionID string `json:"session_id"`
+			Offset    int64  `json:"offset"`
+		} `json:"cursor"`
+		Commit struct {
+			Path string `json:"path"`
+			Mode string `json:"mode"`
+		} `json:"commit"`
+	}{
+		Cursor: struct {
+			SessionID string `json:"session_id"`
+			Offset    int64  `json:"offset"`
+		}{
+			SessionID: sessionID,
+			Offset:    offset,
+		},
+		Commit: struct {
+			Path string `json:"path"`
+			Mode string `json:"mode"`
+		}{
+			Path: targetPath,
+			Mode: "add",
+		},
+	}
+
+	finishArgJSON, err := json.Marshal(finishArg)
+	if err != nil {
+		return err
+	}
+
+	req, err := http.NewRequest("POST", uploadSessionFinishURL, nil)
+	if err != nil {
+		return err
+	}
+
+	req.Header.Set("Authorization", "Bearer "+d.accessToken)
+	req.Header.Set("Content-Type", "application/octet-stream")
+	req.Header.Set("Dropbox-API-Arg", string(finishArgJSON))
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("upload session finish failed with status %d: %s", resp.StatusCode, string(body))
+	}
+
+	return nil
+}
+
+func (d *DropboxUploader) uploadSmallFile(file *os.File, targetPath string) error {
+	// Create API argument
 	apiArg := DropboxAPIArg{
 		Path:           targetPath,
 		Mode:           "add",
@@ -249,6 +473,7 @@ func (d *DropboxUploader) Upload(sourcePath, targetPath string) error {
 		return fmt.Errorf("failed to marshal API argument: %v", err)
 	}
 
+	// Create request
 	req, err := http.NewRequest("POST", dropboxUploadURL, file)
 	if err != nil {
 		return fmt.Errorf("failed to create request: %v", err)
@@ -258,6 +483,7 @@ func (d *DropboxUploader) Upload(sourcePath, targetPath string) error {
 	req.Header.Set("Content-Type", "application/octet-stream")
 	req.Header.Set("Dropbox-API-Arg", string(apiArgJSON))
 
+	// Make request
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
@@ -265,6 +491,7 @@ func (d *DropboxUploader) Upload(sourcePath, targetPath string) error {
 	}
 	defer resp.Body.Close()
 
+	// Check response status
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
 		return fmt.Errorf("upload failed with status %d: %s", resp.StatusCode, string(body))

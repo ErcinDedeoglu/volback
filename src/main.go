@@ -94,17 +94,14 @@ func processContainers(configs ContainerConfigs, uploader *DropboxUploader, drop
 	// Process containers in correct order
 	processed := make(map[string]bool)
 	var processContainer func(config ContainerConfig) error
-
 	processContainer = func(config ContainerConfig) error {
-		// Check if already processed
 		if processed[config.Container] {
 			return nil
 		}
 
-		// Process dependencies first
+		// Process dependencies
 		if deps, ok := dependencies[config.Container]; ok {
 			for _, dep := range deps {
-				// Find dependency config
 				for _, depConfig := range configs {
 					if depConfig.Container == dep {
 						if err := processContainer(depConfig); err != nil {
@@ -130,7 +127,14 @@ func processContainers(configs ContainerConfigs, uploader *DropboxUploader, drop
 		if err := os.MkdirAll(tempDir, 0755); err != nil {
 			return fmt.Errorf("failed to create temporary directory: %v", err)
 		}
-		defer os.RemoveAll(tempDir)
+
+		// Move cleanup to after all operations are complete
+		defer func() {
+			logStep("🧹 Cleaning up temporary directory: %s", tempDir)
+			if err := os.RemoveAll(tempDir); err != nil {
+				logSubStep("⚠️  Failed to remove temporary directory %s: %v", tempDir, err)
+			}
+		}()
 
 		// Get and process volumes
 		volumeResult, err := getContainerVolumes(config.Container)
@@ -152,19 +156,14 @@ func processContainers(configs ContainerConfigs, uploader *DropboxUploader, drop
 			}
 		}
 
-		// Upload to Dropbox using existing logic
+		// Upload to Dropbox
 		if uploader != nil {
 			logHeader("📤 Uploading backup to Dropbox...")
-
-			// Generate timestamp-based filename
 			timestamp := time.Now().Format("20060102.150405")
 			backupFileName := timestamp + ".7z"
-
-			// Construct source and target paths
 			localBackupPath := filepath.Join(tempDir, config.Container+".7z")
 			dropboxTargetPath := filepath.Join(dropboxPath, config.BackupID, backupFileName)
 
-			// Ensure dropbox path starts with "/"
 			if !strings.HasPrefix(dropboxTargetPath, "/") {
 				dropboxTargetPath = "/" + dropboxTargetPath
 			}
@@ -196,5 +195,31 @@ func processContainers(configs ContainerConfigs, uploader *DropboxUploader, drop
 		}
 	}
 
+	return nil
+}
+
+func cleanupOldTempDirs() error {
+	entries, err := os.ReadDir("/tmp")
+	if err != nil {
+		return fmt.Errorf("failed to read /tmp directory: %v", err)
+	}
+
+	for _, entry := range entries {
+		if entry.IsDir() && strings.HasPrefix(entry.Name(), "volback-") {
+			dirPath := filepath.Join("/tmp", entry.Name())
+			info, err := entry.Info()
+			if err != nil {
+				continue
+			}
+
+			// Clean up directories older than 24 hours
+			if time.Since(info.ModTime()) > 24*time.Hour {
+				logSubStep("🧹 Cleaning up old temporary directory: %s", dirPath)
+				if err := os.RemoveAll(dirPath); err != nil {
+					logSubStep("⚠️  Failed to remove old temporary directory %s: %v", dirPath, err)
+				}
+			}
+		}
+	}
 	return nil
 }
