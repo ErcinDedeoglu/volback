@@ -298,7 +298,7 @@ func (d *DropboxUploader) uploadLargeFile(file *os.File, targetPath string, file
 
 	// Finish upload session
 	logStep("📤 Finalizing upload...")
-	if err := d.finishUploadSession(file, sessionID, targetPath, offset); err != nil {
+	if err := d.finishUploadSession(sessionID, targetPath, offset); err != nil {
 		return err
 	}
 	logStep("✅ Upload completed successfully")
@@ -401,7 +401,7 @@ func (d *DropboxUploader) appendToUploadSession(file *os.File, sessionID string,
 	return nil
 }
 
-func (d *DropboxUploader) finishUploadSession(file *os.File, sessionID string, targetPath string, offset int64) error {
+func (d *DropboxUploader) finishUploadSession(sessionID string, targetPath string, offset int64) error {
 	const uploadSessionFinishURL = "https://content.dropboxapi.com/2/files/upload_session/finish"
 
 	finishArg := struct {

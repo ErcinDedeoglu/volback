@@ -197,29 +197,3 @@ func processContainers(configs ContainerConfigs, uploader *DropboxUploader, drop
 
 	return nil
 }
-
-func cleanupOldTempDirs() error {
-	entries, err := os.ReadDir("/tmp")
-	if err != nil {
-		return fmt.Errorf("failed to read /tmp directory: %v", err)
-	}
-
-	for _, entry := range entries {
-		if entry.IsDir() && strings.HasPrefix(entry.Name(), "volback-") {
-			dirPath := filepath.Join("/tmp", entry.Name())
-			info, err := entry.Info()
-			if err != nil {
-				continue
-			}
-
-			// Clean up directories older than 24 hours
-			if time.Since(info.ModTime()) > 24*time.Hour {
-				logSubStep("🧹 Cleaning up old temporary directory: %s", dirPath)
-				if err := os.RemoveAll(dirPath); err != nil {
-					logSubStep("⚠️  Failed to remove old temporary directory %s: %v", dirPath, err)
-				}
-			}
-		}
-	}
-	return nil
-}
