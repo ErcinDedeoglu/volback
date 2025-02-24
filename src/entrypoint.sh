@@ -5,6 +5,7 @@ format_schedule_message() {
     current_time=$(date +%s)
     target_time=$1
     remaining_seconds=$(( target_time - current_time ))
+    
     echo "🕐 Current time: $(date '+%Y-%m-%d %H:%M:%S UTC')"
     echo "⏳ Next backup in $remaining_seconds seconds at $(date -d @$target_time '+%Y-%m-%d %H:%M:%S UTC')"
 }
@@ -48,13 +49,14 @@ format_schedule_message() {
     target_time=\$1
     remaining_seconds=\$(( target_time - current_time ))
     
+    echo "🕐 Current time: \$(date '+%Y-%m-%d %H:%M:%S UTC')"
     echo "⏳ Next backup in \$remaining_seconds seconds at \$(date -d @\$target_time '+%Y-%m-%d %H:%M:%S UTC')"
 }
 
 (
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo "🔄 Backup Process Started"
-    echo "📅 \$(date '+%Y-%m-%d %H:%M:%S UTC')"
+    echo "🕐 Current time: \$(date '+%Y-%m-%d %H:%M:%S UTC')"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo
     /usr/local/bin/volback \\
@@ -70,7 +72,6 @@ format_schedule_message() {
     echo
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo "✅ Backup Process Completed"
-    echo "📅 \$(date '+%Y-%m-%d %H:%M:%S UTC')"
     next_time=\$(calculate_next_time)
     format_schedule_message "\$next_time"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
