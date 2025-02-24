@@ -11,6 +11,11 @@ func processVolumes(container string, volumes []Volume, outputDir string) error 
 	tempDir := filepath.Join(outputDir, "temp", container)
 	os.MkdirAll(tempDir, 0755)
 
+	// Ensure the latest version of the Packmate image is pulled
+	if err := pullLatestPackmateImage(); err != nil {
+		return fmt.Errorf("failed to pull the latest Packmate image: %w", err)
+	}
+
 	for i, volume := range volumes {
 		logHeader("🔸 Volume %d/%d:", i+1, len(volumes))
 		logSubStep("Source: %s", volume.Source)
@@ -41,6 +46,17 @@ func processVolumes(container string, volumes []Volume, outputDir string) error 
 	return os.RemoveAll(filepath.Join(outputDir, "temp"))
 }
 
+func pullLatestPackmateImage() error {
+	logSubStep("⬇️  Pulling the latest version of dublok/packmate...")
+	args := []string{"pull", "dublok/packmate:latest"}
+	_, err := executeCommand("docker", args...)
+	if err != nil {
+		return fmt.Errorf("failed to pull the latest Packmate image: %w", err)
+	}
+	logSubStep("✅ Successfully pulled the latest version of dublok/packmate")
+	return nil
+}
+
 func backupVolume(volume Volume, tempDir string) error {
 	logSubStep("💾 Creating backup with Packmate...")
 	args := []string{
@@ -54,7 +70,6 @@ func backupVolume(volume Volume, tempDir string) error {
 		"--multithreading=true",
 		"--extra=-ms=off",
 	}
-
 	logSubStep("⚙️  Executing: docker %v", args)
 	_, err := executeCommand("docker", args...)
 	return err
@@ -82,6 +97,5 @@ func createFinalArchive(container, tempDir, outputDir string) error {
 	if _, err := os.Stat(finalArchivePath); os.IsNotExist(err) {
 		return fmt.Errorf("final archive was not created at %s", finalArchivePath)
 	}
-
 	return nil
 }
