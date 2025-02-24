@@ -1,7 +1,16 @@
 #!/bin/sh
 
-# Function to format next schedule time
-format_next_schedule() {
+# Function to format schedule message
+format_schedule_message() {
+    current_time=$(date +%s)
+    target_time=$1
+    remaining_seconds=$(( target_time - current_time ))
+    
+    echo "⏳ Next backup in $remaining_seconds seconds at $(date -d @$target_time '+%Y-%m-%d %H:%M:%S UTC')"
+}
+
+# Function to calculate next schedule time
+calculate_next_time() {
     current_minute=$(date +%M)
     next_minute=$(( (current_minute + 1) % 60 ))
     next_hour=$(date +%H)
@@ -9,15 +18,7 @@ format_next_schedule() {
         next_hour=$(( (next_hour + 1) % 24 ))
     fi
     
-    current_time=$(date +%s)
-    next_time=$(date -d "$(date +%Y-%m-%d) $next_hour:$next_minute:00" +%s)
-    remaining_seconds=$(( next_time - current_time ))
-    
-    echo "🕒 Starting scheduled backup service"
-    echo "📝 Schedule: ${CRON_SCHEDULE}"
-    echo "📋 Log file: /var/log/volback.log"
-    echo "⏳ Next backup in $remaining_seconds seconds at $(date -d "$(date +%Y-%m-%d) $next_hour:$next_minute:00")"
-    echo
+    date -d "$(date +%Y-%m-%d) $next_hour:$next_minute:00" +%s
 }
 
 # Function to create cron job
@@ -29,51 +30,42 @@ setup_cron() {
     cat > /usr/local/bin/backup-job.sh << EOF
 #!/bin/sh
 
-# Function to calculate and display next execution
-next_execution() {
-    current_time=\$(date +%s)
-    
-    # Parse the cron schedule
-    minute=\$(echo "$CRON_SCHEDULE" | awk '{print \$1}')
-    hour=\$(echo "$CRON_SCHEDULE" | awk '{print \$2}')
-    
-    # Calculate next execution time
-    if [ "\$minute" = "*" ]; then
-        # If running every minute
-        next_minute=\$(( (\$(date +%M) + 1) % 60 ))
-        next_hour=\$(date +%H)
-        if [ "\$next_minute" -eq 0 ]; then
-            next_hour=\$(( (next_hour + 1) % 24 ))
-        fi
-        next_time=\$(date -d "\$(date +%Y-%m-%d) \$next_hour:\$next_minute:00" +%s)
-    else
-        # For specific minute
-        next_time=\$(date -d "\$(date +%Y-%m-%d) \$(date +%H):\$minute:00" +%s)
-        if [ \$next_time -le \$current_time ]; then
-            next_time=\$(date -d "\$(date +%Y-%m-%d) \$((\$(date +%H)+1)):\$minute:00" +%s)
-        fi
+# Function to calculate next execution
+calculate_next_time() {
+    current_minute=\$(date +%M)
+    next_minute=\$(( (current_minute + 1) % 60 ))
+    next_hour=\$(date +%H)
+    if [ "\$next_minute" -lt "\$current_minute" ]; then
+        next_hour=\$(( (next_hour + 1) % 24 ))
     fi
     
-    # Calculate remaining time
-    remaining_seconds=\$(( next_time - current_time ))
+    date -d "\$(date +%Y-%m-%d) \$next_hour:\$next_minute:00" +%s
+}
+
+# Function to format schedule message
+format_schedule_message() {
+    current_time=\$(date +%s)
+    target_time=\$1
+    remaining_seconds=\$(( target_time - current_time ))
     
-    echo "⏳ Next backup in \$remaining_seconds seconds at \$(date -d @\$next_time)"
+    echo "⏳ Next backup in \$remaining_seconds seconds at \$(date -d @\$target_time '+%Y-%m-%d %H:%M:%S UTC')"
 }
 
 (
-    echo "=== Backup started at \$(date) ==="
-    /usr/local/bin/volback \
-        -containers='$CONTAINERS' \
-        -dropbox-refresh-token='$DROPBOX_REFRESH_TOKEN' \
-        -dropbox-client-id='$DROPBOX_CLIENT_ID' \
-        -dropbox-client-secret='$DROPBOX_CLIENT_SECRET' \
-        -dropbox-path='$DROPBOX_PATH' \
-        -keep-daily=$KEEP_DAILY \
-        -keep-weekly=$KEEP_WEEKLY \
-        -keep-monthly=$KEEP_MONTHLY \
-        -keep-yearly=$KEEP_YEARLY
-    echo "=== Backup completed at \$(date) ==="
-    next_execution
+    echo "=== Backup started at \$(date '+%Y-%m-%d %H:%M:%S UTC') ==="
+    /usr/local/bin/volback \\
+        -containers='$(echo "${CONTAINERS}" | sed 's/\$/\\$/g')' \\
+        -dropbox-refresh-token='${DROPBOX_REFRESH_TOKEN}' \\
+        -dropbox-client-id='${DROPBOX_CLIENT_ID}' \\
+        -dropbox-client-secret='${DROPBOX_CLIENT_SECRET}' \\
+        -dropbox-path='${DROPBOX_PATH}' \\
+        -keep-daily=${KEEP_DAILY} \\
+        -keep-weekly=${KEEP_WEEKLY} \\
+        -keep-monthly=${KEEP_MONTHLY} \\
+        -keep-yearly=${KEEP_YEARLY}
+    echo "=== Backup completed at \$(date '+%Y-%m-%d %H:%M:%S UTC') ==="
+    next_time=\$(calculate_next_time)
+    format_schedule_message "\$next_time"
     echo
 ) >> /var/log/volback.log 2>&1
 EOF
@@ -94,7 +86,12 @@ EOF
     tail -F /var/log/volback.log &
     
     # Show initial schedule information
-    format_next_schedule
+    echo "🕒 Starting scheduled backup service"
+    echo "📝 Schedule: ${CRON_SCHEDULE}"
+    echo "📋 Log file: /var/log/volback.log"
+    next_time=$(calculate_next_time)
+    format_schedule_message "$next_time"
+    echo
     
     # Start crond and wait
     /usr/sbin/crond -f -L /dev/stdout
