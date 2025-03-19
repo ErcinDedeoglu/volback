@@ -6,6 +6,11 @@ repomix --no-file-summary --no-security-check \
   --include "src/Dockerfile,src/entrypoint.sh,src/functions.sh" \
   --output "repopack.yml"
 
+repomix --no-file-summary --no-security-check \
+  --include "src/**" \
+  --ignore "src/go.sum,src/go.mod" \
+  --output "repopack.yml"
+
 go mod tidy
 
 docker build -t dublok/volback:latest -f src/Dockerfile ./src
