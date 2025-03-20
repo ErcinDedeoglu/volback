@@ -6,14 +6,15 @@ RUN go mod download
 RUN CGO_ENABLED=0 GOOS=linux go build -o /volback .
 
 # Final stage
-FROM alpine:3.19
+FROM alpine:latest
 
 # Install required packages
 RUN apk add --no-cache \
     docker-cli \
     busybox-suid \
     mysql-client \
-    mariadb-client
+    mariadb-client \
+    mariadb-connector-c
 
 # Copy binary from builder
 COPY --from=builder /volback /usr/local/bin/
