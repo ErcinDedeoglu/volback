@@ -49,3 +49,22 @@ type ContainerConfig struct {
 }
 
 type ContainerConfigs []ContainerConfig
+
+type MySQLConfig struct {
+	BackupID  *string  `json:"backup_id,omitempty"`
+	Container string   `json:"container"`
+	User      string   `json:"user"`
+	Password  string   `json:"password"`
+	Port      int      `json:"port"`
+	Databases []string `json:"databases"`
+}
+
+type MySQLConfigs []MySQLConfig
+
+type MySQLBackupResult struct {
+	Database   string
+	BackupPath string
+	FileName   string
+	Status     string
+	Error      string
+}

@@ -3,6 +3,7 @@ package main
 
 import (
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -13,13 +14,7 @@ type Backup struct {
 	DateTime time.Time
 }
 
-func parseBackupDateTime(filename string) (time.Time, error) {
-	// Remove .7z extension if present
-	filename = strings.TrimSuffix(filename, ".7z")
-
-	// Try to parse the timestamp
-	return time.Parse("20060102.150405", filename)
-}
+var validFilePattern = regexp.MustCompile(`^[0-9]{8}\.[0-9]{6}`)
 
 func manageRetention(uploader *DropboxUploader, backupPath string, policy RetentionPolicy) error {
 	logHeader("🧹 Managing backup retention...")
@@ -32,17 +27,19 @@ func manageRetention(uploader *DropboxUploader, backupPath string, policy Retent
 	var backups []Backup
 	for _, file := range files {
 		filename := filepath.Base(file)
-		if !strings.HasPrefix(filename, "202") {
+		filename = strings.TrimSuffix(filename, ".7z")
+		filename = strings.TrimSuffix(filename, ".sql")
+
+		if !validFilePattern.MatchString(filename) {
 			logSubStep("⚠️  Skipping invalid filename: %s", filename)
 			continue
 		}
 
-		t, err := parseBackupDateTime(filename)
+		t, err := time.Parse("20060102.150405", filename)
 		if err != nil {
 			logSubStep("⚠️  Skipping unparseable file: %s (%v)", filename, err)
 			continue
 		}
-
 		backups = append(backups, Backup{Path: file, DateTime: t})
 	}
 
