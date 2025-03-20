@@ -9,7 +9,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -o /volback .
 FROM alpine:3.19
 
 # Install required packages
-RUN apk add --no-cache docker-cli busybox-suid
+RUN apk add --no-cache docker-cli busybox-suid mysql-client
 
 # Copy binary from builder
 COPY --from=builder /volback /usr/local/bin/
