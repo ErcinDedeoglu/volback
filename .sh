@@ -13,7 +13,8 @@ repomix --no-file-summary --no-security-check \
 
 go mod tidy
 
-docker build -t dublok/volback:latest -f src/Dockerfile ./src
+docker build -t dublok/volback:latest -f src/Dockerfile ./src && \
+docker push dublok/volback:latest
 
 go run ./*.go --container test1 \
     --id a-unique-name-to-identify-backup \

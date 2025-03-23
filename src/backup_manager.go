@@ -71,7 +71,7 @@ func processContainers(configs ContainerConfigs, uploader *DropboxUploader, drop
 			return fmt.Errorf("failed to get container volumes: %s", volumeResult.Error)
 		}
 
-		if err := processVolumes(config.Container, volumeResult.Volumes, tempDir); err != nil {
+		if err := processVolumes(config, volumeResult.Volumes, tempDir); err != nil {
 			return err
 		}
 

@@ -14,10 +14,15 @@ func getDatabases(config MySQLConfig) ([]string, error) {
 		"-h", config.Container,
 		"-P", fmt.Sprintf("%d", config.Port),
 		"-u", config.User,
-		"-N", "-e", "SHOW DATABASES",
+		"--ssl-verify-server-cert=false",
+		"--skip-ssl",
+		"-N",
+		"-e", "SHOW DATABASES",
 	}
-	cmd := exec.Command("mysql", args...)
+
+	cmd := exec.Command("mariadb", args...)
 	cmd.Env = append(os.Environ(), fmt.Sprintf("MYSQL_PWD=%s", config.Password))
+
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get database list: %v, output: %s", err, string(output))
@@ -34,14 +39,13 @@ func getDatabases(config MySQLConfig) ([]string, error) {
 			databases = append(databases, db)
 		}
 	}
+
 	logStep("📋 Found databases: %s", strings.Join(databases, ", "))
 	return databases, nil
 }
 
 func dumpDatabase(config MySQLConfig, database string) (*MySQLBackupResult, error) {
 	logStep("📦 Backing up database: %s", database)
-
-	// Create output file path in /tmp directory
 	outputFile := fmt.Sprintf("%s.sql", database)
 	fullPath := filepath.Join("/tmp", outputFile)
 
@@ -49,15 +53,18 @@ func dumpDatabase(config MySQLConfig, database string) (*MySQLBackupResult, erro
 		"-h", config.Container,
 		"-P", fmt.Sprintf("%d", config.Port),
 		"-u", config.User,
+		"--ssl-verify-server-cert=false",
+		"--skip-ssl",
 		"--result-file=" + fullPath,
 		database,
 	}
 
-	cmd := exec.Command("mysqldump", args...)
+	cmd := exec.Command("mariadb-dump", args...)
 	cmd.Env = append(os.Environ(), fmt.Sprintf("MYSQL_PWD=%s", config.Password))
+
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return nil, fmt.Errorf("mysqldump failed for database %s: %v, output: %s",
+		return nil, fmt.Errorf("mariadb-dump failed for database %s: %v, output: %s",
 			database, err, strings.TrimSpace(string(output)))
 	}
 

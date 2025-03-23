@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 )
 
-func processVolumes(container string, volumes []Volume, outputDir string) error {
-	tempDir := filepath.Join(outputDir, "temp", container)
+func processVolumes(containerConfig ContainerConfig, volumes []Volume, outputDir string) error {
+	tempDir := filepath.Join(outputDir, "temp", containerConfig.Container)
 	os.MkdirAll(tempDir, 0755)
 
 	// Ensure the latest version of the Packmate image is pulled
@@ -21,6 +21,9 @@ func processVolumes(container string, volumes []Volume, outputDir string) error 
 		logSubStep("Source: %s", volume.Source)
 		logSubStep("Destination: %s", volume.Destination)
 		logSubStep("Type: %s", volume.Type)
+		logSubStep("RW: %t", volume.RW)
+		logSubStep("Mode: %s", volume.Mode)
+		logSubStep("Name: %s", volume.Name)
 
 		// Skip tmpfs volumes
 		if volume.Type == "tmpfs" {
@@ -34,12 +37,17 @@ func processVolumes(container string, volumes []Volume, outputDir string) error 
 			continue
 		}
 
+		if !volume.RW && (containerConfig.IncludeRO == nil || !*containerConfig.IncludeRO) {
+			logSubStep("⏭️  Skipping read-only volume")
+			continue
+		}
+
 		if err := backupVolume(volume, tempDir); err != nil {
 			return err
 		}
 	}
 
-	if err := createFinalArchive(container, tempDir, outputDir); err != nil {
+	if err := createFinalArchive(containerConfig.Container, tempDir, outputDir); err != nil {
 		return err
 	}
 
