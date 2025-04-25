@@ -103,7 +103,7 @@ func processMySQLBackups(configs MySQLConfigs, uploader *DropboxUploader, dropbo
 				return err
 			}
 
-			if err := manageBackupRetention(config, uploader, dropboxPath, retention); err != nil {
+			if err := manageBackupRetention(config, uploader, dropboxPath, retention, db); err != nil {
 				return err
 			}
 		}
@@ -142,7 +142,7 @@ func uploadToDropbox(config MySQLConfig, backupPath string, database string, upl
 	return nil
 }
 
-func manageBackupRetention(config MySQLConfig, uploader *DropboxUploader, dropboxPath string, retention RetentionPolicy) error {
+func manageBackupRetention(config MySQLConfig, uploader *DropboxUploader, dropboxPath string, retention RetentionPolicy, database string) error {
 	if uploader == nil {
 		return nil
 	}
@@ -151,10 +151,10 @@ func manageBackupRetention(config MySQLConfig, uploader *DropboxUploader, dropbo
 		retention.KeepMonthly > 0 || retention.KeepYearly > 0 {
 
 		backupID := getMySQLBackupID(config)
-		retentionPath := filepath.Join(dropboxPath, backupID)
+		retentionPath := filepath.Join(dropboxPath, backupID, database)
 
 		if err := manageRetention(uploader, retentionPath, retention); err != nil {
-			return fmt.Errorf("retention management failed: %v", err)
+			return fmt.Errorf("retention management failed for database %s: %v", database, err)
 		}
 	}
 
