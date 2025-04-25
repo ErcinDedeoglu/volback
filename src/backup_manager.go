@@ -119,12 +119,18 @@ func processContainers(configs ContainerConfigs, uploader *DropboxUploader, drop
 	}
 
 	// Process all containers
+	var errorList []string
 	for _, config := range configs {
 		if err := processContainer(config); err != nil {
-			return err
+			logStep("❌ Error processing container %s: %v", config.Container, err)
+			errorList = append(errorList, fmt.Sprintf("%s: %v", config.Container, err))
+			// Continue to next container instead of returning
 		}
 	}
 
+	if len(errorList) > 0 {
+		return fmt.Errorf("errors occurred during backup: %s", strings.Join(errorList, "; "))
+	}
 	return nil
 }
 
