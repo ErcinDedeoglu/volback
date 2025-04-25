@@ -107,7 +107,7 @@ func (d *DropboxUploader) ListFiles(path string) ([]string, error) {
 	// Extract file paths
 	var files []string
 	for _, entry := range listResponse.Entries {
-		if strings.HasSuffix(entry.Path, ".7z") {
+		if strings.HasSuffix(entry.Path, ".7z") || strings.HasSuffix(entry.Path, ".sql") {
 			files = append(files, entry.Path)
 		}
 	}
