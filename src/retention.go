@@ -29,6 +29,7 @@ func manageRetention(uploader *DropboxUploader, backupPath string, policy Retent
 		filename := filepath.Base(file)
 		filename = strings.TrimSuffix(filename, ".7z")
 		filename = strings.TrimSuffix(filename, ".sql")
+		filename = strings.TrimSuffix(filename, ".bak")
 
 		if !validFilePattern.MatchString(filename) {
 			logSubStep("⚠️  Skipping invalid filename: %s", filename)
