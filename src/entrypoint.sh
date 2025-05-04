@@ -65,7 +65,7 @@ EOF
     echo
     
     # Start crond and wait
-    /usr/sbin/crond -f -L /dev/stdout
+    /usr/sbin/cron -f
 }
 
 # Function for immediate execution

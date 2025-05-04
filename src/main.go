@@ -11,6 +11,7 @@ func main() {
 	// Define flags
 	containersJSON := flag.String("containers", os.Getenv("CONTAINERS"), "JSON array of container configurations")
 	mysqlJSON := flag.String("mysql", os.Getenv("MYSQL"), "JSON array of MySQL configurations")
+	mssqlJSON := flag.String("mssql", os.Getenv("MSSQL"), "JSON array of MSSQL configurations")
 	dropboxRefreshToken := flag.String("dropbox-refresh-token", os.Getenv("DROPBOX_REFRESH_TOKEN"), "Dropbox refresh token")
 	dropboxClientID := flag.String("dropbox-client-id", os.Getenv("DROPBOX_CLIENT_ID"), "Dropbox client ID")
 	dropboxClientSecret := flag.String("dropbox-client-secret", os.Getenv("DROPBOX_CLIENT_SECRET"), "Dropbox client secret")
@@ -80,9 +81,31 @@ func main() {
 		logStep("✅ MySQL backups completed successfully")
 	}
 
+	// Process MSSQL backups if configured
+	if *mssqlJSON != "" {
+		var mssqlConfigs MSSQLConfigs
+		if err := json.Unmarshal([]byte(*mssqlJSON), &mssqlConfigs); err != nil {
+			logStep("❌ Failed to parse MSSQL configurations: %v", err)
+			os.Exit(1)
+		}
+
+		for i := range mssqlConfigs {
+			if mssqlConfigs[i].Port == 0 {
+				mssqlConfigs[i].Port = 1433
+			}
+		}
+
+		logStep("📋 Found %d MSSQL configurations to backup", len(mssqlConfigs))
+		if err := processMSSQLBackups(mssqlConfigs, uploader, *dropboxPath, retentionPolicy); err != nil {
+			logStep("❌ Failed to process MSSQL backups: %v", err)
+			os.Exit(1)
+		}
+		logStep("✅ MSSQL backups completed successfully")
+	}
+
 	// Check if at least one backup type was processed
-	if *containersJSON == "" && *mysqlJSON == "" {
-		logStep("❌ No backup configurations provided (containers or MySQL)")
+	if *containersJSON == "" && *mysqlJSON == "" && *mssqlJSON == "" {
+		logStep("❌ No backup configurations provided (containers, MySQL, or MSSQL)")
 		os.Exit(1)
 	}
 

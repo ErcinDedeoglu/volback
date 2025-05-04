@@ -69,3 +69,22 @@ type MySQLBackupResult struct {
 	Status     string
 	Error      string
 }
+
+type MSSQLConfig struct {
+	BackupID  *string  `json:"backup_id,omitempty"`
+	Host      string   `json:"host"`
+	User      string   `json:"user"`
+	Password  string   `json:"password"`
+	Port      int      `json:"port"`
+	Databases []string `json:"databases"`
+}
+
+type MSSQLConfigs []MSSQLConfig
+
+type MSSQLBackupResult struct {
+	Database   string
+	BackupPath string
+	FileName   string
+	Status     string
+	Error      string
+}
