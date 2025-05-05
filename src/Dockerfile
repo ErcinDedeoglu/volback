@@ -13,6 +13,8 @@ RUN apt-get update && \
     apt-get upgrade -y && \
     apt-get install -y \
         curl \
+        wget \
+        gpg \
         docker.io \
         busybox \
         cron \
@@ -36,21 +38,16 @@ RUN apt-get update && \
         --no-install-recommends && \
     rm -rf /var/lib/apt/lists/*
 
-# Add Microsoft repository and install MSSQL tools
-RUN curl https://packages.microsoft.com/config/ubuntu/24.04/packages-microsoft-prod.deb -o /tmp/msprod.deb && \
-    echo "Downloaded Microsoft repository package" && \
-    dpkg -i /tmp/msprod.deb && \
-    echo "Installed Microsoft repository" && \
-    rm /tmp/msprod.deb && \
+# Add Microsoft repository and install new cross-platform sqlcmd
+# WORKAROUND: Use the Ubuntu 22.04 (jammy) Microsoft repo for sqlcmd, since 24.04 repo may not provide the package yet.
+RUN wget -qO- https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > /usr/share/keyrings/microsoft-prod.gpg && \
+    echo "deb [arch=amd64,arm64,armhf signed-by=/usr/share/keyrings/microsoft-prod.gpg] https://packages.microsoft.com/ubuntu/22.04/prod jammy main" > /etc/apt/sources.list.d/microsoft-prod.list && \
     apt-get update && \
-    echo "Updated package lists with Microsoft repository" && \
-    ACCEPT_EULA=Y apt-get install -y mssql-tools18 && \
-    echo "Installed SQL Server tools" && \
+    apt-get install -y sqlcmd && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
 # Add mssql-tools to PATH for all users
-ENV PATH="${PATH}:/opt/mssql-tools18/bin"
 # Copy binary from builder
 COPY --from=builder /volback /usr/local/bin/
 
