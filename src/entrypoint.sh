@@ -64,8 +64,10 @@ EOF
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo
     
-    # Start crond and wait
+    # Start cron in background
     /usr/sbin/cron -f
+    # Keep the container running by tailing the log in the foreground
+    tail -F /var/log/volback.log
 }
 
 # Function for immediate execution

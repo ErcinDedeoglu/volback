@@ -1,5 +1,5 @@
 # Build stage
-FROM golang:1.23-alpine AS builder
+FROM golang:1.23 AS builder
 WORKDIR /app
 COPY . .
 RUN go mod download
@@ -19,7 +19,21 @@ RUN apt-get update && \
         mariadb-client \
         unixodbc \
         apt-transport-https \
-        gnupg2 && \
+        gnupg2 \
+        bash \
+        procps \
+        net-tools \
+        iproute2 \
+        locales \
+        strace \
+        lsof \
+        vim \
+        less \
+        nano \
+        htop \
+        tzdata \
+        ca-certificates \
+        --no-install-recommends && \
     rm -rf /var/lib/apt/lists/*
 
 # Add Microsoft repository and install MSSQL tools
