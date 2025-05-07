@@ -517,7 +517,7 @@ sigs.k8s.io/yaml                                                              v1
 sqlcmd                                                                        1.5.0-1~buster                         deb                          
 stdlib                                                                        go1.18                                 go-module                    
 stdlib                                                                        go1.22.2                               go-module  (+16 duplicates)  
-stdlib                                                                        go1.23.8                               go-module                    
+stdlib                                                                        go1.23.9                               go-module                    
 strace                                                                        6.8-0ubuntu2                           deb                          
 systemd                                                                       255.4-1ubuntu8.6                       deb                          
 systemd-dev                                                                   255.4-1ubuntu8.6                       deb                          
