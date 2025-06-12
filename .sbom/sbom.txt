@@ -481,6 +481,7 @@ libpam-runtime                                                                1.
 libpam0g                                                                      1.5.3-5ubuntu5.1                       deb                          
 libpcre2-8-0                                                                  10.42-4ubuntu2.1                       deb                          
 libperl5.38t64                                                                5.38.2-3.2ubuntu0.1                    deb                          
+libpq5                                                                        17.5-1.pgdg24.04+1                     deb                          
 libproc2-0                                                                    2:4.0.4-4ubuntu3.2                     deb                          
 libpsl5t64                                                                    0.21.2-1.1build1                       deb                          
 libpython3.12-minimal                                                         3.12.3-1ubuntu0.5                      deb                          
@@ -502,13 +503,15 @@ libss2                                                                        1.
 libssh-4                                                                      0.10.6-2build2                         deb                          
 libssl3t64                                                                    3.0.13-0ubuntu3.5                      deb                          
 libstdc++6                                                                    14.2.0-4ubuntu2~24.04                  deb                          
-libsystemd-shared                                                             255.4-1ubuntu8.6                       deb                          
+libsystemd-shared                                                             255.4-1ubuntu8.8                       deb                          
 libsystemd0                                                                   255.4-1ubuntu8.6                       deb                          
+libsystemd0                                                                   255.4-1ubuntu8.8                       deb                          
 libtasn1-6                                                                    4.19.0-3ubuntu0.24.04.1                deb                          
 libtinfo6                                                                     6.4+20240113-1ubuntu2                  deb                          
 libtirpc-common                                                               1.3.4+ds-1.1build1                     deb                          
 libtirpc3t64                                                                  1.3.4+ds-1.1build1                     deb                          
 libudev1                                                                      255.4-1ubuntu8.6                       deb                          
+libudev1                                                                      255.4-1ubuntu8.8                       deb                          
 libunistring5                                                                 1.1-2build1.1                          deb                          
 libunwind8                                                                    1.6.2-3build1.1                        deb                          
 libuuid1                                                                      2.39.3-9ubuntu6.2                      deb                          
@@ -518,6 +521,7 @@ libzstd1                                                                      1.
 locales                                                                       2.39-0ubuntu8.4                        deb                          
 login                                                                         1:4.13+dfsg1-4ubuntu3.2                deb                          
 logsave                                                                       1.47.0-2.4~exp1ubuntu4.1               deb                          
+lsb-release                                                                   12.0-2                                 deb                          
 lsof                                                                          4.95.0-1build3                         deb                          
 mariadb-client                                                                1:10.11.13-0ubuntu0.24.04.1            deb                          
 mariadb-client-core                                                           1:10.11.13-0ubuntu0.24.04.1            deb                          
@@ -537,6 +541,9 @@ perl                                                                          5.
 perl-base                                                                     5.38.2-3.2ubuntu0.1                    deb                          
 perl-modules-5.38                                                             5.38.2-3.2ubuntu0.1                    deb                          
 pinentry-curses                                                               1.2.1-3ubuntu5                         deb                          
+postgresql-client                                                             17+278.pgdg24.04+1                     deb                          
+postgresql-client-17                                                          17.5-1.pgdg24.04+1                     deb                          
+postgresql-client-common                                                      278.pgdg24.04+1                        deb                          
 procps                                                                        2:4.0.4-4ubuntu3.2                     deb                          
 readline-common                                                               8.2-4build1                            deb                          
 resenje.org/singleflight                                                      v0.4.3                                 go-module                    
@@ -552,8 +559,8 @@ stdlib                                                                        go
 stdlib                                                                        go1.22.2                               go-module  (+14 duplicates)  
 stdlib                                                                        go1.23.10                              go-module                    
 strace                                                                        6.8-0ubuntu2                           deb                          
-systemd                                                                       255.4-1ubuntu8.6                       deb                          
-systemd-dev                                                                   255.4-1ubuntu8.6                       deb                          
+systemd                                                                       255.4-1ubuntu8.8                       deb                          
+systemd-dev                                                                   255.4-1ubuntu8.8                       deb                          
 sysvinit-utils                                                                3.08-6ubuntu3                          deb                          
 tags.cncf.io/container-device-interface                                       v0.8.0                                 go-module                    
 tags.cncf.io/container-device-interface                                       v0.8.1                                 go-module                    
