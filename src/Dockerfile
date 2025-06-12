@@ -22,6 +22,7 @@ RUN apt-get update && \
         unixodbc \
         apt-transport-https \
         gnupg2 \
+        lsb-release \
         bash \
         procps \
         net-tools \
@@ -44,6 +45,14 @@ RUN wget -qO- https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor 
     echo "deb [arch=amd64,arm64,armhf signed-by=/usr/share/keyrings/microsoft-prod.gpg] https://packages.microsoft.com/ubuntu/22.04/prod jammy main" > /etc/apt/sources.list.d/microsoft-prod.list && \
     apt-get update && \
     apt-get install -y sqlcmd && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# Add PostgreSQL official repository and install latest PostgreSQL client
+RUN wget -qO- https://www.postgresql.org/media/keys/ACCC4CF8.asc | gpg --dearmor > /usr/share/keyrings/postgresql.gpg && \
+    echo "deb [arch=amd64,arm64 signed-by=/usr/share/keyrings/postgresql.gpg] https://apt.postgresql.org/pub/repos/apt/ $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/postgresql.list && \
+    apt-get update && \
+    apt-get install -y postgresql-client && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 

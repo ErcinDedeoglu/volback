@@ -88,3 +88,22 @@ type MSSQLBackupResult struct {
 	Status     string
 	Error      string
 }
+
+type PostgreSQLConfig struct {
+	BackupID  *string  `json:"backup_id,omitempty"`
+	Container string   `json:"container"`
+	User      string   `json:"user"`
+	Password  string   `json:"password"`
+	Port      int      `json:"port"`
+	Databases []string `json:"databases"`
+}
+
+type PostgreSQLConfigs []PostgreSQLConfig
+
+type PostgreSQLBackupResult struct {
+	Database   string
+	BackupPath string
+	FileName   string
+	Status     string
+	Error      string
+}

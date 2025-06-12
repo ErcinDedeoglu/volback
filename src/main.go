@@ -12,6 +12,7 @@ func main() {
 	containersJSON := flag.String("containers", os.Getenv("CONTAINERS"), "JSON array of container configurations")
 	mysqlJSON := flag.String("mysql", os.Getenv("MYSQL"), "JSON array of MySQL configurations")
 	mssqlJSON := flag.String("mssql", os.Getenv("MSSQL"), "JSON array of MSSQL configurations")
+	postgresqlJSON := flag.String("postgresql", os.Getenv("POSTGRESQL"), "JSON array of PostgreSQL configurations")
 	dropboxRefreshToken := flag.String("dropbox-refresh-token", os.Getenv("DROPBOX_REFRESH_TOKEN"), "Dropbox refresh token")
 	dropboxClientID := flag.String("dropbox-client-id", os.Getenv("DROPBOX_CLIENT_ID"), "Dropbox client ID")
 	dropboxClientSecret := flag.String("dropbox-client-secret", os.Getenv("DROPBOX_CLIENT_SECRET"), "Dropbox client secret")
@@ -103,9 +104,31 @@ func main() {
 		logStep("✅ MSSQL backups completed successfully")
 	}
 
+	// Process PostgreSQL backups if configured
+	if *postgresqlJSON != "" {
+		var postgresqlConfigs PostgreSQLConfigs
+		if err := json.Unmarshal([]byte(*postgresqlJSON), &postgresqlConfigs); err != nil {
+			logStep("❌ Failed to parse PostgreSQL configurations: %v", err)
+			os.Exit(1)
+		}
+
+		for i := range postgresqlConfigs {
+			if postgresqlConfigs[i].Port == 0 {
+				postgresqlConfigs[i].Port = 5432
+			}
+		}
+
+		logStep("📋 Found %d PostgreSQL configurations to backup", len(postgresqlConfigs))
+		if err := processPostgreSQLBackups(postgresqlConfigs, uploader, *dropboxPath, retentionPolicy); err != nil {
+			logStep("❌ Failed to process PostgreSQL backups: %v", err)
+			os.Exit(1)
+		}
+		logStep("✅ PostgreSQL backups completed successfully")
+	}
+
 	// Check if at least one backup type was processed
-	if *containersJSON == "" && *mysqlJSON == "" && *mssqlJSON == "" {
-		logStep("❌ No backup configurations provided (containers, MySQL, or MSSQL)")
+	if *containersJSON == "" && *mysqlJSON == "" && *mssqlJSON == "" && *postgresqlJSON == "" {
+		logStep("❌ No backup configurations provided (containers, MySQL, MSSQL, or PostgreSQL)")
 		os.Exit(1)
 	}
 
