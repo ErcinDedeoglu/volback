@@ -13,6 +13,7 @@ func main() {
 	mysqlJSON := flag.String("mysql", os.Getenv("MYSQL"), "JSON array of MySQL configurations")
 	mssqlJSON := flag.String("mssql", os.Getenv("MSSQL"), "JSON array of MSSQL configurations")
 	postgresqlJSON := flag.String("postgresql", os.Getenv("POSTGRESQL"), "JSON array of PostgreSQL configurations")
+	qdrantJSON := flag.String("qdrant", os.Getenv("QDRANT"), "JSON array of Qdrant configurations")
 	dropboxRefreshToken := flag.String("dropbox-refresh-token", os.Getenv("DROPBOX_REFRESH_TOKEN"), "Dropbox refresh token")
 	dropboxClientID := flag.String("dropbox-client-id", os.Getenv("DROPBOX_CLIENT_ID"), "Dropbox client ID")
 	dropboxClientSecret := flag.String("dropbox-client-secret", os.Getenv("DROPBOX_CLIENT_SECRET"), "Dropbox client secret")
@@ -126,9 +127,31 @@ func main() {
 		logStep("✅ PostgreSQL backups completed successfully")
 	}
 
+	// Process Qdrant backups if configured
+	if *qdrantJSON != "" {
+		var qdrantConfigs QdrantConfigs
+		if err := json.Unmarshal([]byte(*qdrantJSON), &qdrantConfigs); err != nil {
+			logStep("❌ Failed to parse Qdrant configurations: %v", err)
+			os.Exit(1)
+		}
+
+		for i := range qdrantConfigs {
+			if qdrantConfigs[i].Port == 0 {
+				qdrantConfigs[i].Port = 6333
+			}
+		}
+
+		logStep("📋 Found %d Qdrant configurations to backup", len(qdrantConfigs))
+		if err := processQdrantBackups(qdrantConfigs, uploader, *dropboxPath, retentionPolicy); err != nil {
+			logStep("❌ Failed to process Qdrant backups: %v", err)
+			os.Exit(1)
+		}
+		logStep("✅ Qdrant backups completed successfully")
+	}
+
 	// Check if at least one backup type was processed
-	if *containersJSON == "" && *mysqlJSON == "" && *mssqlJSON == "" && *postgresqlJSON == "" {
-		logStep("❌ No backup configurations provided (containers, MySQL, MSSQL, or PostgreSQL)")
+	if *containersJSON == "" && *mysqlJSON == "" && *mssqlJSON == "" && *postgresqlJSON == "" && *qdrantJSON == "" {
+		logStep("❌ No backup configurations provided (containers, MySQL, MSSQL, PostgreSQL, or Qdrant)")
 		os.Exit(1)
 	}
 

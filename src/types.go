@@ -107,3 +107,21 @@ type PostgreSQLBackupResult struct {
 	Status     string
 	Error      string
 }
+
+type QdrantConfig struct {
+	BackupID    *string  `json:"backup_id,omitempty"`
+	Host        string   `json:"host"`
+	Port        int      `json:"port"`
+	ApiKey      *string  `json:"api_key,omitempty"`
+	Collections []string `json:"collections"`
+}
+
+type QdrantConfigs []QdrantConfig
+
+type QdrantBackupResult struct {
+	Collection string
+	BackupPath string
+	FileName   string
+	Status     string
+	Error      string
+}
