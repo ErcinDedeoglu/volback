@@ -1,4 +1,5 @@
 NAME                                                                          VERSION                                TYPE                        
+./internal/third_party/selinux                                                (devel)                                go-module  (+1 duplicate)    
 adduser                                                                       3.137ubuntu1                           deb                          
 apt                                                                           2.8.3                                  deb                          
 apt-transport-https                                                           2.8.3                                  deb                          
@@ -82,7 +83,8 @@ github.com/containerd/cgroups                                                 v1
 github.com/containerd/cgroups/v3                                              v3.0.2                                 go-module  (+3 duplicates)   
 github.com/containerd/cgroups/v3                                              v3.0.5                                 go-module                    
 github.com/containerd/console                                                 v1.0.3                                 go-module  (+4 duplicates)   
-github.com/containerd/console                                                 v1.0.4                                 go-module  (+2 duplicates)   
+github.com/containerd/console                                                 v1.0.4                                 go-module                    
+github.com/containerd/console                                                 v1.0.5                                 go-module  (+1 duplicate)    
 github.com/containerd/containerd                                              v1.7.28                                go-module  (+5 duplicates)   
 github.com/containerd/containerd/api                                          v1.8.0                                 go-module  (+5 duplicates)   
 github.com/containerd/containerd/api                                          v1.9.0                                 go-module                    
@@ -116,7 +118,8 @@ github.com/containernetworking/plugins                                        v1
 github.com/containers/ocicrypt                                                v1.1.10                                go-module                    
 github.com/coreos/go-systemd/v22                                              v22.5.0                                go-module  (+6 duplicates)   
 github.com/cpuguy83/go-md2man/v2                                              v2.0.5                                 go-module  (+4 duplicates)   
-github.com/cyphar/filepath-securejoin                                         v0.4.1                                 go-module  (+4 duplicates)   
+github.com/cyphar/filepath-securejoin                                         v0.4.1                                 go-module                    
+github.com/cyphar/filepath-securejoin                                         v0.5.1                                 go-module  (+3 duplicates)   
 github.com/davecgh/go-spew                                                    v1.1.1                                 go-module  (+1 duplicate)    
 github.com/deckarep/golang-set/v2                                             v2.3.0                                 go-module                    
 github.com/dimchansky/utfbom                                                  v1.1.1                                 go-module                    
@@ -239,8 +242,8 @@ github.com/modern-go/reflect2                                                 v1
 github.com/morikuni/aec                                                       v1.0.0                                 go-module                    
 github.com/mrunalp/fileutils                                                  v0.5.1                                 go-module  (+1 duplicate)    
 github.com/munnerz/goautoneg                                                  v0.0.0-20191010083416-a7dc8b61c822     go-module                    
-github.com/opencontainers/cgroups                                             v0.0.1                                 go-module  (+1 duplicate)    
 github.com/opencontainers/cgroups                                             v0.0.2                                 go-module                    
+github.com/opencontainers/cgroups                                             v0.0.4                                 go-module  (+1 duplicate)    
 github.com/opencontainers/go-digest                                           v1.0.0                                 go-module  (+8 duplicates)   
 github.com/opencontainers/image-spec                                          v1.0.2                                 go-module                    
 github.com/opencontainers/image-spec                                          v1.1.0                                 go-module  (+6 duplicates)   
@@ -250,7 +253,6 @@ github.com/opencontainers/runtime-spec                                        v1
 github.com/opencontainers/runtime-spec                                        v1.2.1                                 go-module  (+3 duplicates)   
 github.com/opencontainers/runtime-tools                                       v0.9.1-0.20221107090550-2e043c6bd626   go-module  (+1 duplicate)    
 github.com/opencontainers/selinux                                             v1.11.0                                go-module  (+2 duplicates)   
-github.com/opencontainers/selinux                                             v1.11.1                                go-module  (+1 duplicate)    
 github.com/opencontainers/selinux                                             v1.12.0                                go-module                    
 github.com/package-url/packageurl-go                                          v0.1.1                                 go-module                    
 github.com/pelletier/go-toml                                                  v1.9.5                                 go-module  (+2 duplicates)   
@@ -499,7 +501,7 @@ libpam-runtime                                                                1.
 libpam0g                                                                      1.5.3-5ubuntu5.5                       deb                          
 libpcre2-8-0                                                                  10.42-4ubuntu2.1                       deb                          
 libperl5.38t64                                                                5.38.2-3.2ubuntu0.2                    deb                          
-libpq5                                                                        18.0-1.pgdg24.04+3                     deb                          
+libpq5                                                                        18.1-1.pgdg24.04+2                     deb                          
 libproc2-0                                                                    2:4.0.4-4ubuntu3.2                     deb                          
 libpsl5t64                                                                    0.21.2-1.1build1                       deb                          
 libpython3.12-minimal                                                         3.12.3-1ubuntu0.8                      deb                          
@@ -518,17 +520,15 @@ libsmartcols1                                                                 2.
 libsodium23                                                                   1.0.18-1build3                         deb                          
 libsqlite3-0                                                                  3.45.1-1ubuntu2.5                      deb                          
 libss2                                                                        1.47.0-2.4~exp1ubuntu4.1               deb                          
-libssh-4                                                                      0.10.6-2ubuntu0.1                      deb                          
+libssh-4                                                                      0.10.6-2ubuntu0.2                      deb                          
 libssl3t64                                                                    3.0.13-0ubuntu3.6                      deb                          
 libstdc++6                                                                    14.2.0-4ubuntu2~24.04                  deb                          
 libsystemd-shared                                                             255.4-1ubuntu8.11                      deb                          
-libsystemd0                                                                   255.4-1ubuntu8.10                      deb                          
 libsystemd0                                                                   255.4-1ubuntu8.11                      deb                          
 libtasn1-6                                                                    4.19.0-3ubuntu0.24.04.1                deb                          
 libtinfo6                                                                     6.4+20240113-1ubuntu2                  deb                          
 libtirpc-common                                                               1.3.4+ds-1.1build1                     deb                          
 libtirpc3t64                                                                  1.3.4+ds-1.1build1                     deb                          
-libudev1                                                                      255.4-1ubuntu8.10                      deb                          
 libudev1                                                                      255.4-1ubuntu8.11                      deb                          
 libunistring5                                                                 1.1-2build1.1                          deb                          
 libunwind8                                                                    1.6.2-3build1.1                        deb                          
@@ -559,13 +559,13 @@ perl                                                                          5.
 perl-base                                                                     5.38.2-3.2ubuntu0.2                    deb                          
 perl-modules-5.38                                                             5.38.2-3.2ubuntu0.2                    deb                          
 pinentry-curses                                                               1.2.1-3ubuntu5                         deb                          
-postgresql-client                                                             18+285.pgdg24.04+1                     deb                          
-postgresql-client-18                                                          18.0-1.pgdg24.04+3                     deb                          
-postgresql-client-common                                                      285.pgdg24.04+1                        deb                          
+postgresql-client                                                             18+287.pgdg24.04+1                     deb                          
+postgresql-client-18                                                          18.1-1.pgdg24.04+2                     deb                          
+postgresql-client-common                                                      287.pgdg24.04+1                        deb                          
 procps                                                                        2:4.0.4-4ubuntu3.2                     deb                          
 readline-common                                                               8.2-4build1                            deb                          
 resenje.org/singleflight                                                      v0.4.3                                 go-module                    
-runc                                                                          1.3.0-0ubuntu2~24.04.1                 deb                          
+runc                                                                          1.3.3-0ubuntu1~24.04.2                 deb                          
 sed                                                                           4.9-2build1                            deb                          
 sensible-utils                                                                0.0.22                                 deb                          
 sigs.k8s.io/json                                                              v0.0.0-20221116044647-bc3834ca7abd     go-module                    
