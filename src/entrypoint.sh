@@ -30,6 +30,26 @@ EOF
     cat > /usr/local/bin/backup-job.sh << 'EOFSCRIPT'
 #!/bin/bash
 
+LOCKFILE="/var/run/volback.lock"
+
+# Check if another backup is already running
+if [ -f "$LOCKFILE" ]; then
+    pid=$(cat "$LOCKFILE")
+    if kill -0 "$pid" 2>/dev/null; then
+        echo "⏸️  Backup already running (PID: $pid), skipping this run" | tee -a /var/log/volback.log
+        exit 0
+    else
+        # Stale lock file, remove it
+        rm -f "$LOCKFILE"
+    fi
+fi
+
+# Create lock file with current PID
+echo $$ > "$LOCKFILE"
+
+# Ensure lock file is removed on exit
+trap "rm -f '$LOCKFILE'" EXIT
+
 # Source environment variables
 . /usr/local/bin/backup-env.sh
 
