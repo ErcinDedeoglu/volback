@@ -8,9 +8,32 @@ setup_cron() {
     # Ensure crontabs directory exists
     mkdir -p /var/spool/cron/crontabs
     
-    # Create a script that will be executed by cron
+    # Write environment variables to a file that the cron job can source
+    cat > /usr/local/bin/backup-env.sh << EOF
+export CONTAINERS='${CONTAINERS}'
+export MYSQL='${MYSQL}'
+export MSSQL='${MSSQL}'
+export POSTGRESQL='${POSTGRESQL}'
+export QDRANT='${QDRANT}'
+export DROPBOX_REFRESH_TOKEN='${DROPBOX_REFRESH_TOKEN}'
+export DROPBOX_CLIENT_ID='${DROPBOX_CLIENT_ID}'
+export DROPBOX_CLIENT_SECRET='${DROPBOX_CLIENT_SECRET}'
+export DROPBOX_PATH='${DROPBOX_PATH}'
+export KEEP_DAILY='${KEEP_DAILY}'
+export KEEP_WEEKLY='${KEEP_WEEKLY}'
+export KEEP_MONTHLY='${KEEP_MONTHLY}'
+export KEEP_YEARLY='${KEEP_YEARLY}'
+export CRON_SCHEDULE='${CRON_SCHEDULE}'
+EOF
+
+    # Create a script that will be executed by cron (sources env internally)
     cat > /usr/local/bin/backup-job.sh << 'EOFSCRIPT'
 #!/bin/bash
+
+# Source environment variables
+. /usr/local/bin/backup-env.sh
+
+# Source shared functions
 . /usr/local/bin/functions.sh
 
 # Output to both log file and stdout (for docker logs)
@@ -44,33 +67,20 @@ setup_cron() {
 } 2>&1 | tee -a /var/log/volback.log
 EOFSCRIPT
 
-    # Write environment variables to a file that the cron job can source
-    cat > /usr/local/bin/backup-env.sh << EOF
-export CONTAINERS='${CONTAINERS}'
-export MYSQL='${MYSQL}'
-export MSSQL='${MSSQL}'
-export POSTGRESQL='${POSTGRESQL}'
-export QDRANT='${QDRANT}'
-export DROPBOX_REFRESH_TOKEN='${DROPBOX_REFRESH_TOKEN}'
-export DROPBOX_CLIENT_ID='${DROPBOX_CLIENT_ID}'
-export DROPBOX_CLIENT_SECRET='${DROPBOX_CLIENT_SECRET}'
-export DROPBOX_PATH='${DROPBOX_PATH}'
-export KEEP_DAILY='${KEEP_DAILY}'
-export KEEP_WEEKLY='${KEEP_WEEKLY}'
-export KEEP_MONTHLY='${KEEP_MONTHLY}'
-export KEEP_YEARLY='${KEEP_YEARLY}'
-export CRON_SCHEDULE='${CRON_SCHEDULE}'
-EOF
-
     # Make the scripts executable
     chmod +x /usr/local/bin/backup-job.sh
     chmod +x /usr/local/bin/backup-env.sh
     
-    # Create cron entry that sources the environment file first
-    echo "${CRON_SCHEDULE} . /usr/local/bin/backup-env.sh && /usr/local/bin/backup-job.sh" > /var/spool/cron/crontabs/root
+    # Create cron entry - simple direct call to the script
+    # IMPORTANT: crontab MUST end with a newline
+    printf '%s /usr/local/bin/backup-job.sh\n' "${CRON_SCHEDULE}" > /var/spool/cron/crontabs/root
     
-    # Set proper permissions
-    chmod 0644 /var/spool/cron/crontabs/root
+    # Set proper permissions for crontab (must be 600 for cron to accept it)
+    chmod 0600 /var/spool/cron/crontabs/root
+    chown root:root /var/spool/cron/crontabs/root
+
+    # Also install the crontab using crontab command to ensure it's registered
+    crontab /var/spool/cron/crontabs/root
     
     # Clear existing log file
     > /var/log/volback.log
@@ -84,6 +94,9 @@ EOF
     format_schedule_message "$next_time"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo
+    
+    # Start tailing the log file in background so output appears in docker logs
+    tail -F /var/log/volback.log &
     
     # Start cron daemon in foreground (keeps container alive)
     exec /usr/sbin/cron -f -L 15
