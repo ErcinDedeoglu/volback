@@ -89,6 +89,15 @@ func processContainers(configs ContainerConfigs, uploader *DropboxUploader, drop
 			backupFileName := timestamp + ".7z"
 			localBackupPath := filepath.Join(tempDir, config.Container+".7z")
 
+			// Verify backup file exists and has content before uploading
+			fileInfo, err := os.Stat(localBackupPath)
+			if err != nil {
+				return fmt.Errorf("backup file not found: %v", err)
+			}
+			if fileInfo.Size() == 0 {
+				return fmt.Errorf("backup file is empty (0 bytes), skipping upload for %s", config.Container)
+			}
+
 			// Use the helper function to get the backup ID
 			backupID := getBackupID(config)
 			dropboxTargetPath := filepath.Join(dropboxPath, backupID, backupFileName)

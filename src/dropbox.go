@@ -426,7 +426,7 @@ func (d *DropboxUploader) finishUploadSession(sessionID string, targetPath strin
 			Mode string `json:"mode"`
 		}{
 			Path: targetPath,
-			Mode: "add",
+			Mode: "overwrite",
 		},
 	}
 
@@ -462,8 +462,8 @@ func (d *DropboxUploader) uploadSmallFile(file *os.File, targetPath string) erro
 	// Create API argument
 	apiArg := DropboxAPIArg{
 		Path:           targetPath,
-		Mode:           "add",
-		AutoRename:     true,
+		Mode:           "overwrite",
+		AutoRename:     false,
 		Mute:           false,
 		StrictConflict: false,
 	}
