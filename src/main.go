@@ -14,6 +14,7 @@ func main() {
 	mssqlJSON := flag.String("mssql", os.Getenv("MSSQL"), "JSON array of MSSQL configurations")
 	postgresqlJSON := flag.String("postgresql", os.Getenv("POSTGRESQL"), "JSON array of PostgreSQL configurations")
 	qdrantJSON := flag.String("qdrant", os.Getenv("QDRANT"), "JSON array of Qdrant configurations")
+	pathsJSON := flag.String("paths", os.Getenv("PATHS"), "JSON array of host path configurations")
 	dropboxRefreshToken := flag.String("dropbox-refresh-token", os.Getenv("DROPBOX_REFRESH_TOKEN"), "Dropbox refresh token")
 	dropboxClientID := flag.String("dropbox-client-id", os.Getenv("DROPBOX_CLIENT_ID"), "Dropbox client ID")
 	dropboxClientSecret := flag.String("dropbox-client-secret", os.Getenv("DROPBOX_CLIENT_SECRET"), "Dropbox client secret")
@@ -149,9 +150,25 @@ func main() {
 		logStep("✅ Qdrant backups completed successfully")
 	}
 
+	// Process path backups if configured
+	if *pathsJSON != "" {
+		var pathConfigs PathConfigs
+		if err := json.Unmarshal([]byte(*pathsJSON), &pathConfigs); err != nil {
+			logStep("❌ Failed to parse path configurations: %v", err)
+			os.Exit(1)
+		}
+
+		logStep("📋 Found %d paths to backup", len(pathConfigs))
+		if err := processPathBackups(pathConfigs, uploader, *dropboxPath, retentionPolicy); err != nil {
+			logStep("❌ Failed to process path backups: %v", err)
+			os.Exit(1)
+		}
+		logStep("✅ Path backups completed successfully")
+	}
+
 	// Check if at least one backup type was processed
-	if *containersJSON == "" && *mysqlJSON == "" && *mssqlJSON == "" && *postgresqlJSON == "" && *qdrantJSON == "" {
-		logStep("❌ No backup configurations provided (containers, MySQL, MSSQL, PostgreSQL, or Qdrant)")
+	if *containersJSON == "" && *mysqlJSON == "" && *mssqlJSON == "" && *postgresqlJSON == "" && *qdrantJSON == "" && *pathsJSON == "" {
+		logStep("❌ No backup configurations provided (containers, MySQL, MSSQL, PostgreSQL, Qdrant, or paths)")
 		os.Exit(1)
 	}
 

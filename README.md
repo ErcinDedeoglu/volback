@@ -1,15 +1,16 @@
 # Volback
 
-Automated Docker volume and database backup utility with Dropbox storage and intelligent retention policies.
+Automated backup utility for Docker volumes, host directories, and databases with Dropbox storage and intelligent retention policies.
 
 [![Docker Image](https://img.shields.io/docker/v/dublok/volback?sort=semver&label=Docker%20Hub)](https://hub.docker.com/r/dublok/volback)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 
 ## What It Does
 
-Volback backs up your Docker container volumes and databases to Dropbox automatically. It handles the entire backup lifecycle: stopping containers safely, creating compressed archives, uploading to cloud storage, and cleaning up old backups based on your retention policy.
+Volback backs up your Docker container volumes, host directories, and databases to Dropbox automatically. It handles the entire backup lifecycle: creating compressed archives, uploading to cloud storage, and cleaning up old backups based on your retention policy.
 
 **Supported Backup Types:**
+- Host directories (any path on the system)
 - Docker container volumes (compressed with 7z)
 - MySQL / MariaDB databases
 - PostgreSQL databases  
@@ -200,6 +201,38 @@ QDRANT='[
 | `api_key` | string | No | - | API key if authentication is enabled |
 | `backup_id` | string | No | host name | Custom backup folder name |
 
+#### Host Paths
+
+Backup any directory on the host system directly, without needing a Docker container.
+
+```bash
+PATHS='[
+  {"path": "/home/user/data"},
+  {"path": "/etc/myapp", "backup_id": "myapp-config"},
+  {"path": "/var/lib/important"}
+]'
+```
+
+| Field | Type | Required | Default | Description |
+|-------|------|----------|---------|-------------|
+| `path` | string | Yes | - | Absolute path to backup |
+| `backup_id` | string | No | directory name | Custom backup folder name |
+
+**Note:** When using `PATHS`, mount the directories into the container:
+
+```bash
+docker run --rm \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  -v /tmp:/tmp \
+  -v /home/user/data:/home/user/data:ro \
+  -e PATHS='[{"path": "/home/user/data", "backup_id": "my-data"}]' \
+  -e DROPBOX_REFRESH_TOKEN="..." \
+  -e DROPBOX_CLIENT_ID="..." \
+  -e DROPBOX_CLIENT_SECRET="..." \
+  -e DROPBOX_PATH="/backups" \
+  dublok/volback:latest
+```
+
 ### Retention Policy
 
 Control how many backups to keep. Volback automatically deletes old backups that exceed these limits.
@@ -307,6 +340,9 @@ Backups are organized in Dropbox by backup ID and timestamped:
 │   ├── 20260127.030000.7z
 │   ├── 20260126.030000.7z
 │   └── 20260125.030000.7z
+├── my-data/
+│   ├── 20260127.030000.7z
+│   └── 20260126.030000.7z
 ├── mysql/
 │   ├── app_db/
 │   │   ├── 20260127.030000.sql

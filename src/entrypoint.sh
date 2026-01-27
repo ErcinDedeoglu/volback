@@ -15,6 +15,7 @@ export MYSQL='${MYSQL}'
 export MSSQL='${MSSQL}'
 export POSTGRESQL='${POSTGRESQL}'
 export QDRANT='${QDRANT}'
+export PATHS='${PATHS}'
 export DROPBOX_REFRESH_TOKEN='${DROPBOX_REFRESH_TOKEN}'
 export DROPBOX_CLIENT_ID='${DROPBOX_CLIENT_ID}'
 export DROPBOX_CLIENT_SECRET='${DROPBOX_CLIENT_SECRET}'
@@ -69,6 +70,7 @@ trap "rm -f '$LOCKFILE'" EXIT
         -mssql="${MSSQL}" \
         -postgresql="${POSTGRESQL}" \
         -qdrant="${QDRANT}" \
+        -paths="${PATHS}" \
         -dropbox-refresh-token="${DROPBOX_REFRESH_TOKEN}" \
         -dropbox-client-id="${DROPBOX_CLIENT_ID}" \
         -dropbox-client-secret="${DROPBOX_CLIENT_SECRET}" \
@@ -131,6 +133,7 @@ run_immediate() {
         -mssql="${MSSQL}" \
         -postgresql="${POSTGRESQL}" \
         -qdrant="${QDRANT}" \
+        -paths="${PATHS}" \
         -dropbox-refresh-token="${DROPBOX_REFRESH_TOKEN}" \
         -dropbox-client-id="${DROPBOX_CLIENT_ID}" \
         -dropbox-client-secret="${DROPBOX_CLIENT_SECRET}" \

@@ -125,3 +125,18 @@ type QdrantBackupResult struct {
 	Status     string
 	Error      string
 }
+
+type PathConfig struct {
+	Path     string  `json:"path"`
+	BackupID *string `json:"backup_id,omitempty"`
+}
+
+type PathConfigs []PathConfig
+
+type PathBackupResult struct {
+	Path       string
+	BackupPath string
+	FileName   string
+	Status     string
+	Error      string
+}
