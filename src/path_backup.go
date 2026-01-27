@@ -79,9 +79,23 @@ func processPathBackup(config PathConfig, uploader *DropboxUploader, dropboxPath
 
 func createPathArchive(sourcePath, backupID, outputDir string) error {
 	logStep("💾 Creating archive with Packmate...")
+
+	// Copy source data to a staging directory under outputDir (which is in /tmp, shared with host)
+	// This is necessary because sourcePath may be a mount inside this container that doesn't exist on the host
+	stagingDir := filepath.Join(outputDir, "staging")
+	if err := os.MkdirAll(stagingDir, 0755); err != nil {
+		return fmt.Errorf("failed to create staging directory: %v", err)
+	}
+
+	logSubStep("📋 Copying data to staging directory...")
+	// Use cp -a to preserve permissions, symlinks, etc.
+	if _, err := executeCommand("cp", "-a", sourcePath+"/.", stagingDir+"/"); err != nil {
+		return fmt.Errorf("failed to copy data to staging: %v", err)
+	}
+
 	args := []string{
 		"run", "--rm",
-		"-v", sourcePath + ":/source:ro",
+		"-v", stagingDir + ":/source:ro",
 		"-v", outputDir + ":/output",
 		"dublok/packmate:latest",
 		"--name", backupID,
