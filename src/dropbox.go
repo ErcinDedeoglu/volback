@@ -2,6 +2,8 @@ package main
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -9,6 +11,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 )
@@ -42,14 +45,16 @@ type TokenResponse struct {
 	TokenType   string `json:"token_type"`
 }
 
-// Dropbox API response structures
+type DropboxFileEntry struct {
+	Name        string `json:"name"`
+	Path        string `json:"path_display"`
+	ContentHash string `json:"content_hash"`
+}
+
 type DropboxListFolderResponse struct {
-	Entries []struct {
-		Name string `json:".tag"`
-		Path string `json:"path_display"`
-	} `json:"entries"`
-	HasMore bool   `json:"has_more"`
-	Cursor  string `json:"cursor"`
+	Entries []DropboxFileEntry `json:"entries"`
+	HasMore bool               `json:"has_more"`
+	Cursor  string             `json:"cursor"`
 }
 
 type DropboxDeleteFileResponse struct {
@@ -60,12 +65,28 @@ type DropboxDeleteFileResponse struct {
 
 // ListFiles returns a list of files in the specified Dropbox path
 func (d *DropboxUploader) ListFiles(path string) ([]string, error) {
-	// Ensure path starts with "/"
+	entries, err := d.ListFilesWithMetadata(path)
+	if err != nil {
+		return nil, err
+	}
+
+	var files []string
+	for _, entry := range entries {
+		files = append(files, entry.Path)
+	}
+	return files, nil
+}
+
+// ListFilesWithMetadata returns files with full metadata including content_hash
+func (d *DropboxUploader) ListFilesWithMetadata(path string) ([]DropboxFileEntry, error) {
 	if !strings.HasPrefix(path, "/") {
 		path = "/" + path
 	}
 
-	// Prepare request body
+	if err := d.ensureValidToken(); err != nil {
+		return nil, fmt.Errorf("failed to ensure valid token: %v", err)
+	}
+
 	requestBody := map[string]interface{}{
 		"path":      path,
 		"recursive": false,
@@ -76,43 +97,117 @@ func (d *DropboxUploader) ListFiles(path string) ([]string, error) {
 		return nil, fmt.Errorf("error marshaling request body: %v", err)
 	}
 
-	// Create request
 	req, err := http.NewRequest("POST", dropboxListFolderURL, strings.NewReader(string(jsonBody)))
 	if err != nil {
 		return nil, fmt.Errorf("error creating request: %v", err)
 	}
 
-	// Set headers
 	req.Header.Set("Authorization", "Bearer "+d.accessToken)
 	req.Header.Set("Content-Type", "application/json")
 
-	// Make request
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("error making request: %v", err)
 	}
 	defer resp.Body.Close()
 
-	// Check response status
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 	}
 
-	// Parse response
 	var listResponse DropboxListFolderResponse
 	if err := json.NewDecoder(resp.Body).Decode(&listResponse); err != nil {
 		return nil, fmt.Errorf("error decoding response: %v", err)
 	}
 
-	// Extract file paths
-	var files []string
+	var files []DropboxFileEntry
 	for _, entry := range listResponse.Entries {
 		if strings.HasSuffix(entry.Path, ".7z") || strings.HasSuffix(entry.Path, ".sql") || strings.HasSuffix(entry.Path, ".bak") {
-			files = append(files, entry.Path)
+			files = append(files, entry)
 		}
 	}
 
 	return files, nil
+}
+
+// GetLatestBackupHash returns the content_hash of the most recent backup in the folder
+func (d *DropboxUploader) GetLatestBackupHash(folderPath string) (string, error) {
+	entries, err := d.ListFilesWithMetadata(folderPath)
+	if err != nil {
+		return "", err
+	}
+
+	if len(entries) == 0 {
+		return "", nil
+	}
+
+	sort.Slice(entries, func(i, j int) bool {
+		return entries[i].Name > entries[j].Name
+	})
+
+	return entries[0].ContentHash, nil
+}
+
+// ComputeDropboxHash computes the Dropbox content_hash for a local file
+// Dropbox uses: SHA256 of concatenated SHA256 hashes of 4MB blocks
+func ComputeDropboxHash(filePath string) (string, error) {
+	const blockSize = 4 * 1024 * 1024 // 4MB
+
+	file, err := os.Open(filePath)
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+
+	var blockHashes []byte
+	buffer := make([]byte, blockSize)
+
+	for {
+		n, err := file.Read(buffer)
+		if n > 0 {
+			blockHash := sha256.Sum256(buffer[:n])
+			blockHashes = append(blockHashes, blockHash[:]...)
+		}
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return "", err
+		}
+	}
+
+	finalHash := sha256.Sum256(blockHashes)
+	return hex.EncodeToString(finalHash[:]), nil
+}
+
+// UploadIfChanged uploads only if the local file differs from the latest backup
+// Returns (uploaded bool, error)
+func (d *DropboxUploader) UploadIfChanged(sourcePath, targetPath, folderPath string) (bool, error) {
+	localHash, err := ComputeDropboxHash(sourcePath)
+	if err != nil {
+		return false, fmt.Errorf("failed to compute local hash: %v", err)
+	}
+
+	remoteHash, err := d.GetLatestBackupHash(folderPath)
+	if err != nil {
+		logSubStep("⚠️  Could not get remote hash, proceeding with upload: %v", err)
+		remoteHash = ""
+	}
+
+	if localHash == remoteHash && remoteHash != "" {
+		logStep("⏭️  Skipping upload - content unchanged (hash: %s...)", localHash[:12])
+		return false, nil
+	}
+
+	if remoteHash != "" {
+		logSubStep("Content changed (local: %s... remote: %s...)", localHash[:12], remoteHash[:12])
+	}
+
+	if err := d.Upload(sourcePath, targetPath); err != nil {
+		return false, err
+	}
+
+	return true, nil
 }
 
 // DeleteFile deletes a file from Dropbox
