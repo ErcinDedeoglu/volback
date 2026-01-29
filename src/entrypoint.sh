@@ -144,6 +144,8 @@ run_immediate() {
         -keep-yearly="${KEEP_YEARLY}"
 }
 
+rm -rf /tmp/volback-* 2>/dev/null || true
+
 # Check if CRON_SCHEDULE is set
 if [ -n "$CRON_SCHEDULE" ]; then
     setup_cron

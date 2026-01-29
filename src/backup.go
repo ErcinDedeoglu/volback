@@ -9,7 +9,10 @@ import (
 
 func processVolumes(containerConfig ContainerConfig, volumes []Volume, outputDir string) error {
 	tempDir := filepath.Join(outputDir, "temp", containerConfig.Container)
-	os.MkdirAll(tempDir, 0755)
+	if err := os.MkdirAll(tempDir, 0755); err != nil {
+		return fmt.Errorf("failed to create temp directory %s: %w", tempDir, err)
+	}
+	defer os.RemoveAll(filepath.Join(outputDir, "temp"))
 
 	// Ensure the latest version of the Packmate image is pulled
 	if err := pullLatestPackmateImage(); err != nil {
@@ -51,7 +54,7 @@ func processVolumes(containerConfig ContainerConfig, volumes []Volume, outputDir
 		return err
 	}
 
-	return os.RemoveAll(filepath.Join(outputDir, "temp"))
+	return nil
 }
 
 func pullLatestPackmateImage() error {

@@ -4,9 +4,57 @@ import (
 	"encoding/json"
 	"flag"
 	"os"
+	"os/signal"
+	"path/filepath"
+	"syscall"
 )
 
+func cleanupOrphanedTempDirs() {
+	patterns := []string{
+		"/tmp/volback-*",
+		"/tmp/volback-path-*",
+	}
+
+	for _, pattern := range patterns {
+		matches, err := filepath.Glob(pattern)
+		if err != nil {
+			logSubStep("⚠️  Failed to glob pattern %s: %v", pattern, err)
+			continue
+		}
+
+		for _, match := range matches {
+			logStep("🧹 Removing orphaned temp directory: %s", match)
+			if err := os.RemoveAll(match); err != nil {
+				logSubStep("⚠️  Failed to remove %s: %v", match, err)
+			}
+		}
+	}
+}
+
+func setupSignalHandler() {
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+
+	go func() {
+		sig := <-sigChan
+		logStep("⚠️  Received signal %v, cleaning up...", sig)
+		cleanupOrphanedTempDirs()
+		os.Exit(1)
+	}()
+}
+
 func main() {
+	defer func() {
+		if r := recover(); r != nil {
+			logStep("❌ PANIC: %v", r)
+			cleanupOrphanedTempDirs()
+			os.Exit(1)
+		}
+	}()
+
+	setupSignalHandler()
+	cleanupOrphanedTempDirs()
+
 	logHeader("=== Docker Volume Backup Utility ===")
 	// Define flags
 	containersJSON := flag.String("containers", os.Getenv("CONTAINERS"), "JSON array of container configurations")
