@@ -1,12 +1,12 @@
 # VOLBACK KNOWLEDGE BASE
 
-**Generated:** 2026-01-27  
-**Commit:** 5cdd968  
+**Generated:** 2026-01-29  
+**Commit:** 77f9066  
 **Branch:** v1.0
 
 ## OVERVIEW
 
-Docker volume backup utility (Go) supporting container volumes, MySQL, PostgreSQL, MSSQL, and Qdrant databases with Dropbox storage and retention policies.
+Docker volume backup utility (Go) supporting container volumes, host paths, MySQL, PostgreSQL, MSSQL, and Qdrant databases with Dropbox storage and retention policies.
 
 ## STRUCTURE
 
@@ -15,6 +15,7 @@ volback/
 ├── src/                    # All Go code + Docker artifacts
 │   ├── main.go             # Entry point, flag parsing, orchestration
 │   ├── types.go            # All config/result struct definitions
+│   ├── config.go           # Config helpers (getEnvInt)
 │   ├── backup_manager.go   # Container backup with dependency resolution
 │   ├── backup.go           # Volume backup logic (tar, 7z)
 │   ├── *_backup.go         # Database-specific backup handlers
@@ -83,7 +84,7 @@ if len(errorList) > 0 {
 | Don't | Why | Instead |
 |-------|-----|---------|
 | Use Docker CLI in Go code | SDK provides better error handling | Use `github.com/docker/docker/client` |
-| Hardcode backup extensions | Retention checks .7z, .sql, .bak | Add to `dropbox.go:ListFiles()` filter |
+| Hardcode backup extensions | Retention checks .7z, .sql, .bak | Update BOTH `dropbox.go:ListFiles()` AND `retention.go` |
 | Skip `omitempty` on optional JSON fields | Will serialize nil as null | Use `*Type` + `json:"field,omitempty"` |
 | os.Exit() in library functions | Prevents error aggregation | Return error, let main() handle exit |
 | Delete backups synchronously | Slow for many files | Consider batch deletion (not implemented) |
@@ -118,6 +119,7 @@ docker run -d ... -e CRON_SCHEDULE="0 0 * * *" dublok/volback:latest
 
 ### Backup Targets (JSON arrays, at least one required)
 - `CONTAINERS` - Docker volume backups: `[{"container":"name","stop":true,"backup_id":"custom-id"}]`
+- `PATHS` - Host directory backups: `[{"path":"/data","backup_id":"my-data"}]`
 - `MYSQL` - `[{"container":"mysql","user":"root","password":"x","databases":["db1"]}]`
 - `POSTGRESQL` - Same pattern, port defaults to 5432
 - `MSSQL` - Uses `host` instead of `container`, port defaults to 1433

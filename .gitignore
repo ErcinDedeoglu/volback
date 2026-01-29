@@ -28,3 +28,5 @@ repopack.txt
 repopack.yml
 output
 _secret.sh
+.sisyphus
+.ruff_cache
